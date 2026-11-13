@@ -98,6 +98,9 @@ code, .mono { font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; 
 .btn.perigo:hover:not(:disabled) { border-color: var(--bad); }
 .btn.bloco { width: 100%; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Primário desabilitado fica opaco: preso no rodapé do celular, o cartão de trás não vaza por ele */
+.btn.prim:disabled { opacity: 1; background: var(--surface-2); color: var(--muted); box-shadow: 0 0 0 1px var(--alu-anel); filter: none; }
+.caixa { display: flex; flex-direction: column; gap: 8px; }
 .campo { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--muted); min-width: 0; }
 .campo small { font-weight: 600; }
 input, select, textarea { min-height: 52px; border: 1.5px solid transparent; border-radius: 14px; background: var(--campo-fundo); box-shadow: inset 0 1px 0 var(--alu-luz), 0 0 0 1px var(--alu-anel), 0 2px 5px -3px rgba(0, 0, 0, 0.2); padding: 8px 14px; font-size: 16px; font-weight: 600; width: 100%; color: var(--text); }
@@ -201,6 +204,7 @@ ul.card.lista li { padding: 11px 0; }
 .atributos { color: var(--muted); font-size: 13px; font-weight: 600; }
 .soma-teor { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); color: var(--muted); }
 .soma-teor.bom { background: var(--ok-soft); color: var(--ok); }
+.soma-teor.ruim { background: var(--bad-soft); color: var(--bad); }
 .campo-elemento { flex-direction: row; align-items: flex-end; gap: 10px; }
 .campo-elemento .grow { display: flex; flex-direction: column; gap: 6px; }
 
@@ -411,6 +415,7 @@ ul.card.lista li { padding: 11px 0; }
   .so-celular { display: inline-flex; }
   /* Botão do passo fica preso acima das abas, como no app */
   .cta { position: sticky; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 1; box-shadow: 0 0 0 8px var(--surface); }
+  .cta.caixa { background: var(--surface); border-radius: 12px; }
   .mm { gap: 8px; }
 }
 

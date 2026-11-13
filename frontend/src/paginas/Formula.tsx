@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
-import { api, dinheiro, ErroApi, lerNumero, num, useCarregar, type Entrada, type Formula as FormulaSalva, type Resultado } from '../api';
+import { api, dinheiro, ErroApi, lerNumero, num, numeroRuim, useCarregar, type Entrada, type Formula as FormulaSalva, type Resultado } from '../api';
 import { AvisoDaNavegacao, BarraComposicao, Cabecalho, Carregando, chavesDosMateriais, coresDosMateriais, elemento, Falha, metal, Plaquinha, Vazio } from '../componentes';
 import { Icone } from '../icones';
 import { HeroCalculando, PainelResultado, PainelSemSolucao } from './Resultado';
@@ -18,17 +18,46 @@ function entradaDe(f: FormulaSalva): Entrada {
   return { batch_size: f.batch_size, batch_unit: f.batch_unit, items: f.items, limits: f.limits };
 }
 
+// Fórmula nova ainda não salva fica guardada nesta aba: sair para corrigir um material não apaga o que foi preenchido
+const RASCUNHO = 'liga-formula-nova';
+type Rascunho = { nome: string; lote: string; unidade: 'kg' | 't'; itens: Record<number, Faixa>; limites: Record<number, Faixa> };
+
+function lerRascunho(): Partial<Rascunho> {
+  try {
+    return JSON.parse(sessionStorage.getItem(RASCUNHO) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+function avisoFaixa(f: Faixa, invertido: boolean) {
+  if (numeroRuim(f.min) || numeroRuim(f.max)) return 'Digite só números (vírgula ou ponto nos decimais).';
+  if (foraDe0a100(f.min) || foraDe0a100(f.max)) return 'A inclusão vai de 0 a 100%.';
+  return invertido ? 'O mínimo está acima do máximo.' : null;
+}
+
+const foraDe0a100 = (s: string) => !numeroRuim(s) && s.trim() !== '' && ((lerNumero(s) ?? 0) < 0 || (lerNumero(s) ?? 0) > 100);
+
 export default function Formula() {
   const { id } = useParams();
   const salva = id ? Number(id) : undefined;
   const navegar = useNavigate();
   const base = useCarregar(() => Promise.all([api.materiais(), api.atributos(), salva ? api.formula(salva) : Promise.resolve(null)]), [salva]);
 
-  const [nome, setNome] = useState('');
-  const [lote, setLote] = useState('1000');
-  const [unidade, setUnidade] = useState<'kg' | 't'>('kg');
-  const [itens, setItens] = useState<Record<number, Faixa>>({});
-  const [limites, setLimites] = useState<Record<number, Faixa>>({});
+  const [inicio] = useState(() => (salva ? {} : lerRascunho()));
+  const [nome, setNome] = useState(inicio.nome ?? '');
+  const [lote, setLote] = useState(inicio.lote ?? '1000');
+  const [unidade, setUnidade] = useState<'kg' | 't'>(inicio.unidade ?? 'kg');
+  const [itens, setItens] = useState<Record<number, Faixa>>(inicio.itens ?? {});
+  const [limites, setLimites] = useState<Record<number, Faixa>>(inicio.limites ?? {});
+  useEffect(() => {
+    if (salva) return;
+    try {
+      sessionStorage.setItem(RASCUNHO, JSON.stringify({ nome, lote, unidade, itens, limites }));
+    } catch {
+      // sem armazenamento (modo privado): o rascunho só não fica guardado
+    }
+  }, [salva, nome, lote, unidade, itens, limites]);
   const [passo, setPasso] = useState<Passo>('materiais');
   const [calculo, setCalculo] = useState<{ ocupado?: boolean; resultado?: Resultado; erro?: ErroApi; de?: string }>({});
   const [envio, setEnvio] = useState<{ ocupado?: boolean; ok?: string; erro?: ErroApi }>({});
@@ -73,6 +102,10 @@ export default function Formula() {
   const somaMin = entrada.items.reduce((s, i) => s + i.min_pct, 0);
   const somaMax = entrada.items.reduce((s, i) => s + i.max_pct, 0);
   const somaRuim = entrada.items.length > 0 && (somaMin > 100 || somaMax < 100);
+  const loteRuim = numeroRuim(lote) || (lerNumero(lote) ?? 0) <= 0;
+  const faixaRuim = (f: Faixa) => numeroRuim(f.min) || numeroRuim(f.max) || foraDe0a100(f.min) || foraDe0a100(f.max);
+  const limiteRuim = (f: Faixa) => numeroRuim(f.min) || numeroRuim(f.max);
+  const camposRuins = loteRuim || Object.values(itens).some(faixaRuim) || Object.values(limites).some(limiteRuim);
   const semValor = (aid: number) => materiais.filter((m) => itens[m.id] && !m.values.some((v) => v.attribute_id === aid)).map((m) => m.name);
   const desatualizado = calculo.de !== undefined && !calculo.ocupado && calculo.de !== JSON.stringify(entrada);
   const cores = coresDosMateriais(materiais, atributos);
@@ -98,8 +131,18 @@ export default function Formula() {
     setEnvio({ ocupado: true });
     try {
       const f = await api.salvarFormula({ ...entrada, name: nome }, salva);
-      setEnvio({ ok: 'Fórmula salva.' });
-      if (!salva) navegar(`/formulas/${f.id}`, { replace: true, state: { aviso: 'Fórmula salva.' } });
+      if (salva) {
+        setEnvio({ ok: 'Fórmula salva.' });
+        return;
+      }
+      // Fórmula nova: o aviso vem pela navegação (um só) e o rascunho guardado já não serve
+      setEnvio({});
+      try {
+        sessionStorage.removeItem(RASCUNHO);
+      } catch {
+        // sem armazenamento: nada a limpar
+      }
+      navegar(`/formulas/${f.id}`, { replace: true, state: { aviso: 'Fórmula salva.' } });
     } catch (erro) {
       setEnvio({ erro: erro as ErroApi });
     }
@@ -133,7 +176,8 @@ export default function Formula() {
             <ul className="selecao">
               {materiais.map((m) => {
                 const f = itens[m.id];
-                const invertido = f && (lerNumero(f.min) ?? 0) > (lerNumero(f.max) ?? 100);
+                const invertido = !!f && (lerNumero(f.min) ?? 0) > (lerNumero(f.max) ?? 100);
+                const aviso = f ? avisoFaixa(f, invertido) : null;
                 return (
                   <li key={m.id} className={`metal ${chaves.get(m.id)} ${f ? 'marcado' : ''}`}>
                     <label className="linha">
@@ -142,10 +186,10 @@ export default function Formula() {
                       <span className="preco">{dinheiro(m.price_per_kg)}<small>/kg</small></span>
                     </label>
                     {f ? (
-                      <div className={`faixa ${invertido ? 'ruim' : ''}`}>
-                        <label>Inclusão mín.<span className="inp"><input type="number" min={0} max={100} step="any" value={f.min} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, min: e.target.value } })} /><em>%</em></span></label>
-                        <label>máx.<span className="inp"><input type="number" min={0} max={100} step="any" value={f.max} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, max: e.target.value } })} /><em>%</em></span></label>
-                        {invertido ? <small className="msg-erro"><Icone nome="alert" tamanho={16} />O mínimo está acima do máximo.</small> : null}
+                      <div className={`faixa ${aviso ? 'ruim' : ''}`}>
+                        <label>Inclusão mín.<span className="inp"><input inputMode="decimal" value={f.min} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, min: e.target.value } })} /><em>%</em></span></label>
+                        <label>máx.<span className="inp"><input inputMode="decimal" value={f.max} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, max: e.target.value } })} /><em>%</em></span></label>
+                        {aviso ? <small className="msg-erro"><Icone nome="alert" tamanho={16} />{aviso}</small> : null}
                       </div>
                     ) : null}
                   </li>
@@ -163,11 +207,12 @@ export default function Formula() {
         <section className={`painel card ${passo === 'limites' ? 'ativo' : ''}`} aria-labelledby="t-limites">
           <h2 id="t-limites"><span className="selo-n peq" aria-hidden="true">2</span>Limites</h2>
           <div className="lote">
-            <label className="campo">Tamanho do lote<input type="number" min={0} step="any" value={lote} onChange={(e) => setLote(e.target.value)} /></label>
+            <label className="campo">Tamanho do lote<input inputMode="decimal" value={lote} onChange={(e) => setLote(e.target.value)} /></label>
             <label className="campo">Unidade
               <select value={unidade} onChange={(e) => setUnidade(e.target.value as 'kg' | 't')}><option value="kg">kg</option><option value="t">t</option></select>
             </label>
           </div>
+          {loteRuim ? <p className="msg-erro"><Icone nome="alert" tamanho={16} />Informe um lote maior que zero, só com números.</p> : null}
           {atributos.length === 0 ? <p className="dica">Nenhum atributo técnico cadastrado. <Link to="/atributos">Criar atributos</Link></p> : (
             <ul className="limites">
               {atributos.map((a) => {
@@ -176,13 +221,14 @@ export default function Formula() {
                 const faltam = usado ? semValor(a.id) : [];
                 const invertido = usado && f.min.trim() !== '' && f.max.trim() !== '' && (lerNumero(f.min) ?? 0) > (lerNumero(f.max) ?? 0);
                 return (
-                  <li key={a.id} className={`${metal(a.name)} ${invertido || faltam.length ? 'ruim' : ''}`}>
+                  <li key={a.id} className={`${metal(a.name)} ${invertido || faltam.length || limiteRuim(f) ? 'ruim' : ''}`}>
                     <span className="lim-top"><Plaquinha nome={a.name} tamanho="grande" /><b>{a.name}</b>{a.unit && a.unit !== '%' ? <span className="dica">({a.unit})</span> : null}</span>
                     <div className="mm">
-                      <label className="campo">Mínimo<span className="inp"><input aria-label={`Mínimo de ${a.name}`} type="number" step="any" placeholder="—" value={f.min} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, min: e.target.value } })} />{a.unit ? <em>{a.unit}</em> : null}</span></label>
+                      <label className="campo">Mínimo<span className="inp"><input aria-label={`Mínimo de ${a.name}`} inputMode="decimal" placeholder="—" value={f.min} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, min: e.target.value } })} />{a.unit ? <em>{a.unit}</em> : null}</span></label>
                       <span className="ate" aria-hidden="true">até</span>
-                      <label className="campo">Máximo<span className="inp"><input aria-label={`Máximo de ${a.name}`} type="number" step="any" placeholder="—" value={f.max} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, max: e.target.value } })} />{a.unit ? <em>{a.unit}</em> : null}</span></label>
+                      <label className="campo">Máximo<span className="inp"><input aria-label={`Máximo de ${a.name}`} inputMode="decimal" placeholder="—" value={f.max} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, max: e.target.value } })} />{a.unit ? <em>{a.unit}</em> : null}</span></label>
                     </div>
+                    {limiteRuim(f) ? <p className="msg-erro"><Icone nome="alert" tamanho={16} />Digite só números (vírgula ou ponto nos decimais).</p> : null}
                     {invertido ? <p className="msg-erro"><Icone nome="alert" tamanho={16} />O mínimo está acima do máximo.</p> : null}
                     {faltam.length ? <p className="msg-erro"><Icone nome="alert" tamanho={16} />Sem valor em: {faltam.join(', ')}</p> : null}
                   </li>
@@ -191,15 +237,24 @@ export default function Formula() {
             </ul>
           )}
           <p className="dica">Deixe em branco o lado que não tem limite.</p>
-          <button className="btn prim bloco cta" onClick={() => calcular()} disabled={calculo.ocupado || entrada.items.length === 0}>
-            <Icone nome="play" tamanho={18} />{calculo.ocupado ? 'Calculando…' : 'Calcular mistura'}
-          </button>
+          {/* O motivo de não dar para calcular fica junto do botão (no celular os dois ficam presos embaixo) */}
+          <div className="cta caixa">
+            {entrada.items.length === 0 ? <p className="dica">Marque pelo menos um material no passo 1 para calcular.</p> : null}
+            {entrada.items.length > 0 && camposRuins ? (
+              <p className="msg-erro"><Icone nome="alert" tamanho={16} />
+                {Object.values(itens).some(faixaRuim) ? 'Corrija a inclusão em vermelho no passo 1.' : 'Corrija os campos em vermelho para calcular.'}
+              </p>
+            ) : null}
+            <button className="btn prim bloco" onClick={() => calcular()} disabled={calculo.ocupado || entrada.items.length === 0 || camposRuins}>
+              <Icone nome="play" tamanho={18} />{calculo.ocupado ? 'Calculando…' : 'Calcular mistura'}
+            </button>
+          </div>
         </section>
 
         <section className={`painel card ${passo === 'resultado' ? 'ativo' : ''}`} aria-labelledby="t-resultado" aria-live="polite">
           <h2 id="t-resultado"><span className="selo-n peq" aria-hidden="true">3</span>Resultado</h2>
           {desatualizado ? (
-            <p className="aviso">Os dados mudaram depois do cálculo. <button className="btn sec peq" onClick={() => calcular()}>Calcular de novo</button></p>
+            <p className="aviso">Os dados mudaram depois do cálculo. <button className="btn sec peq" onClick={() => calcular()} disabled={camposRuins}>Calcular de novo</button></p>
           ) : null}
           {calculo.ocupado ? <HeroCalculando />
             : calculo.erro ? <Falha erro={calculo.erro} />
@@ -209,7 +264,7 @@ export default function Formula() {
 
           <form className="salvar" onSubmit={salvar}>
             <label className="campo grow">Nome da fórmula<input required maxLength={120} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Liga padrão" /></label>
-            <button className="btn prim" disabled={envio.ocupado || entrada.items.length === 0}>{salva ? 'Salvar alterações' : 'Salvar fórmula'}</button>
+            <button className="btn prim" disabled={envio.ocupado || entrada.items.length === 0 || camposRuins}>{salva ? 'Salvar alterações' : 'Salvar fórmula'}</button>
           </form>
           {envio.ok ? <p className="aviso bom" role="status">{envio.ok}</p> : null}
           {envio.erro ? <Falha erro={envio.erro} /> : null}

@@ -30,6 +30,12 @@ A conexão padrão é `postgresql+psycopg://postgres@localhost:5432/liga_especia
 set DATABASE_URL=postgresql+psycopg://postgres:SUA_SENHA@localhost:5432/liga_especial
 ```
 
+A API só responde quando é chamada por `localhost` ou `127.0.0.1`, o que barra ataques de DNS rebinding. Para publicar em outro endereço, inclua o domínio em `ALLOWED_HOSTS` (separado por vírgula):
+
+```bash
+set ALLOWED_HOSTS=localhost,127.0.0.1,liga.exemplo.com.br
+```
+
 Na primeira execução, o backend cria as tabelas e cadastra os dados da planilha `Liga_Especial_Solver.xlsx`: 4 atributos, 6 materiais e a fórmula "Liga padrão".
 
 - Documentação da API: http://localhost:8000/docs

@@ -39,7 +39,8 @@ async function pedir<T>(metodo: string, caminho: string, corpo?: unknown): Promi
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
     });
   } catch (causa) {
-    throw new ErroApi('Sem conexão com a API. Ela está rodando na porta 8000?', [], { cause: causa });
+    // Sem detalhe de porta ou endereço na tela: quem usa só precisa saber que o servidor não respondeu
+    throw new ErroApi('Sem conexão com o servidor. Tente de novo em instantes.', [], { cause: causa });
   }
   if (r.status === 204) return undefined as T;
   const dados = await r.json().catch(() => null);
@@ -92,3 +93,5 @@ export const dinheiro = (v: number) =>
 export const comUnidade = (v: number, unidade: string) => (unidade === '%' ? `${num(v)}%` : `${num(v)} ${unidade}`.trim());
 // Campo vazio = sem valor; vírgula também vale
 export const lerNumero = (s: string): number | null => (s.trim() === '' ? null : Number(s.replace(',', '.')));
+// Campo com algo que não é número ("sessenta", "1e999"): a tela avisa e o cálculo não sai, em vez de ignorar calado
+export const numeroRuim = (s: string) => s.trim() !== '' && !Number.isFinite(lerNumero(s));

@@ -58,6 +58,7 @@ export default function MaterialForm() {
   const elementos = atributos.filter((a) => elemento(a.name) && a.unit === '%');
   const somaElementos = values.filter((v) => elementos.some((a) => a.id === v.attribute_id)).reduce((s, v) => s + v.value, 0);
   const fecha = Math.abs(somaElementos - 100) < 0.01;
+  const passa = somaElementos > 100.01;
 
   return (
     <form className="pagina estreita" onSubmit={salvar}>
@@ -81,6 +82,7 @@ export default function MaterialForm() {
                   <span>{a.name}{a.unit && a.unit !== '%' ? <small> ({a.unit})</small> : null}</span>
                   <span className="inp">
                     <input type="number" step="any" inputMode="decimal" placeholder="sem valor" value={valores[a.id] ?? ''}
+                      min={a.unit === '%' ? 0 : undefined} max={a.unit === '%' ? 100 : undefined}
                       onChange={(e) => setValores({ ...valores, [a.id]: e.target.value })} />
                     {a.unit ? <em>{a.unit}</em> : null}
                   </span>
@@ -91,9 +93,10 @@ export default function MaterialForm() {
         )}
         <BarraComposicao valores={values} atributos={atributos} altura={10} />
         {elementos.length > 0 ? (
-          <p className={`soma-teor ${fecha ? 'bom' : ''}`} aria-live="polite">
+          <p className={`soma-teor ${fecha ? 'bom' : ''} ${passa ? 'ruim' : ''}`} aria-live="polite">
             {fecha ? <Icone nome="check" tamanho={16} /> : null}
-            Soma dos elementos: {num(somaElementos)}%
+            {passa ? <Icone nome="alert" tamanho={16} /> : null}
+            Soma dos elementos: {num(somaElementos)}%{passa ? ': passa de 100%, confira os teores' : ''}
           </p>
         ) : null}
         <p className="dica">Deixe em branco o que não se aplica. Um material sem valor não entra em fórmula que limita esse atributo.</p>

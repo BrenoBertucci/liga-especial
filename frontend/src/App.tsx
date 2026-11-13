@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, NavLink, Route, Routes } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link, NavLink, Route, Routes, useParams } from 'react-router-dom';
 
 import { Logo } from './componentes';
 import { Icone, type NomeIcone } from './icones';
@@ -18,6 +18,13 @@ const LINKS: { para: string; rotulo: string; icone: NomeIcone }[] = [
 ];
 
 type Tema = 'claro' | 'escuro';
+
+const NAO_ENCONTRADA = <p className="estado">Página não encontrada. <Link to="/">Voltar ao início</Link></p>;
+
+// /formulas/abc e /materiais/xyz não viram cadastro novo: mostram que a página não existe
+function SoComId({ children }: { children: ReactNode }) {
+  return /^[0-9]+$/.test(useParams().id ?? '') ? children : NAO_ENCONTRADA;
+}
 
 function temaInicial(): Tema {
   try {
@@ -66,12 +73,12 @@ export default function App() {
           <Route path="/" element={<Inicio />} />
           <Route path="/materiais" element={<Materiais />} />
           <Route path="/materiais/novo" element={<MaterialForm />} />
-          <Route path="/materiais/:id" element={<MaterialForm />} />
+          <Route path="/materiais/:id" element={<SoComId><MaterialForm /></SoComId>} />
           <Route path="/atributos" element={<Atributos />} />
           <Route path="/formulas" element={<Formulas />} />
           <Route path="/formulas/nova" element={<Formula />} />
-          <Route path="/formulas/:id" element={<Formula />} />
-          <Route path="*" element={<p className="estado">Página não encontrada. <Link to="/">Voltar ao início</Link></p>} />
+          <Route path="/formulas/:id" element={<SoComId><Formula /></SoComId>} />
+          <Route path="*" element={NAO_ENCONTRADA} />
         </Routes>
       </main>
     </div>
