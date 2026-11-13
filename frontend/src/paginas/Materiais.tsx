@@ -46,7 +46,7 @@ export default function Materiais() {
                   <span className="atributos">{m.values.length === 0 ? 'Sem atributos preenchidos' : resumo.slice(0, 4).join(' · ')}
                     {resumo.length > 4 ? ` · +${resumo.length - 4}` : ''}
                   </span>
-                  {m.notes ? <span className="dica">{m.notes}</span> : null}
+                  {m.notes ? <span className="dica" title={m.notes}>{m.notes}</span> : null}
                 </Link>
               </li>
             );

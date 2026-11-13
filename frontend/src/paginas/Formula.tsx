@@ -36,6 +36,8 @@ function avisoFaixa(f: Faixa, invertido: boolean) {
   return invertido ? 'O mínimo está acima do máximo.' : null;
 }
 
+const numeroOu = (s: string, padrao: number) => (numeroRuim(s) ? padrao : lerNumero(s) ?? padrao);
+
 const foraDe0a100 = (s: string) => !numeroRuim(s) && s.trim() !== '' && ((lerNumero(s) ?? 0) < 0 || (lerNumero(s) ?? 0) > 100);
 
 export default function Formula() {
@@ -65,7 +67,8 @@ export default function Formula() {
   const entrada: Entrada = {
     batch_size: lerNumero(lote) ?? 0,
     batch_unit: unidade,
-    items: Object.entries(itens).map(([mid, f]) => ({ material_id: Number(mid), min_pct: lerNumero(f.min) ?? 0, max_pct: lerNumero(f.max) ?? 100 })),
+    // Campo inválido já fica vermelho e trava o cálculo; aqui só não deixa a soma da tela virar NaN
+    items: Object.entries(itens).map(([mid, f]) => ({ material_id: Number(mid), min_pct: numeroOu(f.min, 0), max_pct: numeroOu(f.max, 100) })),
     limits: Object.entries(limites)
       .filter(([, f]) => f.min.trim() !== '' || f.max.trim() !== '')
       .map(([aid, f]) => ({ attribute_id: Number(aid), min_value: lerNumero(f.min), max_value: lerNumero(f.max) })),

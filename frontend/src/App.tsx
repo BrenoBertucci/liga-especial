@@ -21,9 +21,9 @@ type Tema = 'claro' | 'escuro';
 
 const NAO_ENCONTRADA = <p className="estado">Página não encontrada. <Link to="/">Voltar ao início</Link></p>;
 
-// /formulas/abc e /materiais/xyz não viram cadastro novo: mostram que a página não existe
+// /formulas/abc, /formulas/0 e /materiais/xyz não viram cadastro novo: mostram que a página não existe
 function SoComId({ children }: { children: ReactNode }) {
-  return /^[0-9]+$/.test(useParams().id ?? '') ? children : NAO_ENCONTRADA;
+  return /^[1-9][0-9]*$/.test(useParams().id ?? '') ? children : NAO_ENCONTRADA;
 }
 
 function temaInicial(): Tema {
