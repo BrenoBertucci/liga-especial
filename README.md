@@ -53,19 +53,6 @@ O `npm run dev` sobe a API (porta 8000) e o site (porta 5181) no mesmo terminal,
 
 Acesse http://localhost:5181. As chamadas para `/api` são repassadas ao backend na porta 8000.
 
-## Publicar (grátis)
-
-| Parte | Onde | Como |
-| --- | --- | --- |
-| Banco | Supabase | Projeto na região East US (North Virginia). Copie a conexão "Session pooler" (botão Connect). |
-| API | Render | New → Blueprint, usando o `render.yaml`. Em `DATABASE_URL`, cole a conexão do Supabase com a senha. |
-| Site | Vercel | Importe o repositório com Root Directory `frontend`. O `vercel.json` repassa `/api` para a API no Render. |
-
-- A API aceita o endereço público do Render sozinha, e a conexão `postgresql://` do Supabase funciona como vem.
-- Se o Render der outro endereço ao serviço (o nome já existir), troque o destino do `/api` em `frontend/vercel.json`.
-- No plano grátis, o Render desliga a API depois de 15 minutos sem acesso, e a primeira chamada depois disso leva de 30 a 60 s. O Supabase pausa o projeto depois de 1 semana sem uso; ele volta pelo painel.
-- A API não tem login: com o site no ar, qualquer pessoa com o endereço consegue alterar os dados.
-
 ## API
 
 | Método e caminho | O que faz |

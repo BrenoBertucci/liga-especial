@@ -31,9 +31,9 @@ app = FastAPI(title="Liga Especial · rascunho", lifespan=lifespan)
 # Só atende pelos nomes deste PC: um site que aponte o domínio dele para 127.0.0.1 (DNS rebinding) leva 400.
 # Publicando com outro endereço, inclua o domínio em ALLOWED_HOSTS (separado por vírgula).
 HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-# No Render, o endereço público (nome.onrender.com) chega nesta variável
-if os.environ.get("RENDER_EXTERNAL_HOSTNAME"):
-    HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
+# Endereço público do próprio serviço, preenchido pela hospedagem
+if os.environ.get("VERCEL_PROJECT_PRODUCTION_URL"):
+    HOSTS.append(os.environ["VERCEL_PROJECT_PRODUCTION_URL"])
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=HOSTS)
 
 
