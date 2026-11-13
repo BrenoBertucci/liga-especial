@@ -1,0 +1,17 @@
+# API no Render (plano grátis). O site fica na Vercel e repassa /api para cá; o banco é o Supabase.
+services:
+  - type: web
+    name: liga-especial-api
+    runtime: python
+    plan: free
+    # Mesma região do banco no Supabase (East US, North Virginia): cada consulta não atravessa continente
+    region: virginia
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # Conexão "Session pooler" do Supabase, com a senha. Preenchida no painel do Render, nunca no repositório.
+      - key: DATABASE_URL
+        sync: false

@@ -30,7 +30,11 @@ async def lifespan(_):
 app = FastAPI(title="Liga Especial · rascunho", lifespan=lifespan)
 # Só atende pelos nomes deste PC: um site que aponte o domínio dele para 127.0.0.1 (DNS rebinding) leva 400.
 # Publicando com outro endereço, inclua o domínio em ALLOWED_HOSTS (separado por vírgula).
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(","))
+HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# No Render, o endereço público (nome.onrender.com) chega nesta variável
+if os.environ.get("RENDER_EXTERNAL_HOSTNAME"):
+    HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=HOSTS)
 
 
 @app.middleware("http")

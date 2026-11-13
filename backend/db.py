@@ -1,5 +1,6 @@
 """Banco: conexão, sessão e as seis tabelas do rascunho."""
 import os
+import re
 from datetime import datetime
 
 from sqlalchemy import DateTime, Float, ForeignKey, String, Text, create_engine, func
@@ -7,7 +8,10 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship,
 
 # Sem senha no código: passe DATABASE_URL completa, ou deixe o libpq ler do pgpass.conf / PGPASSWORD
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+psycopg://postgres@localhost:5432/liga_especial")
-engine = create_engine(DATABASE_URL)
+# Supabase e outros provedores entregam postgresql://; o driver instalado é o psycopg 3
+DATABASE_URL = re.sub(r"^postgres(ql)?://", "postgresql+psycopg://", DATABASE_URL)
+# pre_ping descarta a conexão que o servidor fechou enquanto a API estava parada
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 
