@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './App';
 import './estilo.css';
+import './texturas';
 
 createRoot(document.getElementById('raiz')!).render(
   <StrictMode>

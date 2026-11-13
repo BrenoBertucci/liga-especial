@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 
 import { api, ErroApi, useCarregar, type Atributo } from '../api';
-import { Cabecalho, Carregando, Falha, Vazio } from '../componentes';
+import { Cabecalho, Carregando, Falha, metal, Plaquinha, Vazio } from '../componentes';
+import { Icone } from '../icones';
 
 export default function Atributos() {
   const r = useCarregar(() => api.atributos(), []);
@@ -28,18 +29,18 @@ export default function Atributos() {
 
   return (
     <div className="pagina estreita">
-      <Cabecalho titulo="Atributos técnicos" sub="Medidas que você quer controlar na composição: teores, umidade, pureza, densidade…" />
+      <Cabecalho eyebrow="Cadastro" titulo="Atributos técnicos" sub="Medidas que você quer controlar na composição: teores, umidade, pureza, densidade…" />
       <form className="card form linha-form" onSubmit={criar}>
         <label className="campo grow">Nome<input required maxLength={80} placeholder="Ex.: Umidade" value={novo.name} onChange={(e) => setNovo({ ...novo, name: e.target.value })} /></label>
         <label className="campo unidade">Unidade<input maxLength={20} placeholder="%" value={novo.unit} onChange={(e) => setNovo({ ...novo, unit: e.target.value })} /></label>
-        <button className="btn prim">Adicionar</button>
+        <button className="btn prim"><Icone nome="plus" tamanho={18} />Adicionar</button>
       </form>
       <p className="dica">Só atributos numéricos. Na mistura, o valor é a média dos materiais ponderada pela massa.</p>
       {erro ? <Falha erro={erro} /> : null}
       {r.carregando ? <Carregando /> : r.erro ? <Falha erro={r.erro} tentar={r.recarregar} /> : (r.dados ?? []).length === 0 ? (
-        <Vazio titulo="Nenhum atributo ainda" texto="Adicione o primeiro acima." />
+        <Vazio titulo="Nenhum atributo ainda" texto="Adicione o primeiro acima." icone="sliders" />
       ) : (
-        <ul className="card lista">
+        <ul className="pilha">
           {(r.dados ?? []).map((a) => <LinhaAtributo key={a.id} a={a} rodar={rodar} />)}
         </ul>
       )}
@@ -57,11 +58,12 @@ function LinhaAtributo({ a, rodar }: { a: Atributo; rodar: (acao: () => Promise<
     }
   };
   return (
-    <li className="linha-form">
+    <li className={`linha-form atributo ${metal(a.name) || 'card'}`}>
+      <Plaquinha nome={a.name} />
       <input aria-label="Nome do atributo" className="grow" value={nome} onChange={(e) => setNome(e.target.value)} />
       <input aria-label={`Unidade de ${a.name}`} className="unidade" value={unidade} onChange={(e) => setUnidade(e.target.value)} />
       <button className="btn sec peq" disabled={!mudou || !nome.trim()} onClick={() => rodar(() => api.salvarAtributo({ name: nome, unit: unidade }, a.id))}>Salvar</button>
-      <button className="btn perigo peq" onClick={excluir}>Excluir</button>
+      <button className="btn perigo peq" onClick={excluir}><Icone nome="trash" tamanho={16} />Excluir</button>
     </li>
   );
 }

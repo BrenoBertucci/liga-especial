@@ -4,8 +4,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { api, dinheiro, ErroApi, lerNumero, num, useCarregar, type Entrada, type Formula as FormulaSalva, type Resultado } from '../api';
-import { AvisoDaNavegacao, Cabecalho, Carregando, Falha, Vazio } from '../componentes';
-import { PainelResultado, PainelSemSolucao } from './Resultado';
+import { AvisoDaNavegacao, BarraComposicao, Cabecalho, Carregando, chavesDosMateriais, coresDosMateriais, elemento, Falha, metal, Plaquinha, Vazio } from '../componentes';
+import { Icone } from '../icones';
+import { HeroCalculando, PainelResultado, PainelSemSolucao } from './Resultado';
 
 type Faixa = { min: string; max: string };
 type Passo = 'materiais' | 'limites' | 'resultado';
@@ -74,6 +75,16 @@ export default function Formula() {
   const somaRuim = entrada.items.length > 0 && (somaMin > 100 || somaMax < 100);
   const semValor = (aid: number) => materiais.filter((m) => itens[m.id] && !m.values.some((v) => v.attribute_id === aid)).map((m) => m.name);
   const desatualizado = calculo.de !== undefined && !calculo.ocupado && calculo.de !== JSON.stringify(entrada);
+  const cores = coresDosMateriais(materiais, atributos);
+  const chaves = chavesDosMateriais(materiais, atributos);
+  const indicePasso = PASSOS.findIndex(([p]) => p === passo);
+
+  // Mínimos de elemento usados no último cálculo: se passam de 100% juntos, a tela de sem solução mostra
+  const usada: Entrada | null = calculo.de ? JSON.parse(calculo.de) : null;
+  const minimos = (usada?.limits ?? []).flatMap((l) => {
+    const a = atributos.find((x) => x.id === l.attribute_id);
+    return a && a.unit === '%' && elemento(a.name) && l.min_value !== null ? [{ nome: a.name, valor: l.min_value }] : [];
+  });
 
   const alternar = (mid: number) => {
     const novo = { ...itens };
@@ -96,7 +107,7 @@ export default function Formula() {
 
   return (
     <div className="pagina larga">
-      <Cabecalho titulo={salva ? nome || 'Fórmula' : 'Nova fórmula'} sub="Escolha os materiais, defina os limites e calcule a composição de menor custo.">
+      <Cabecalho eyebrow="Fórmula" titulo={salva ? nome || 'Fórmula' : 'Nova fórmula'} sub="Escolha os materiais, defina os limites e calcule a mistura de menor custo.">
         <Link className="btn sec" to="/formulas">Fórmulas salvas</Link>
       </Cabecalho>
       <AvisoDaNavegacao />
@@ -104,8 +115,8 @@ export default function Formula() {
       <ol className="passos" aria-label="Etapas">
         {PASSOS.map(([p, rotulo], i) => (
           <li key={p}>
-            <button className={passo === p ? 'ativo' : ''} aria-current={passo === p ? 'step' : undefined} onClick={() => setPasso(p)}>
-              <span>{i + 1}</span>{rotulo}
+            <button className={passo === p ? 'ativo' : i < indicePasso ? 'feito' : ''} aria-current={passo === p ? 'step' : undefined} onClick={() => setPasso(p)}>
+              {i + 1}. {rotulo}
             </button>
           </li>
         ))}
@@ -113,9 +124,9 @@ export default function Formula() {
 
       <div className="editor">
         <section className={`painel card ${passo === 'materiais' ? 'ativo' : ''}`} aria-labelledby="t-materiais">
-          <h2 id="t-materiais">1. Materiais</h2>
+          <h2 id="t-materiais"><span className="selo-n peq" aria-hidden="true">1</span>Materiais</h2>
           {materiais.length === 0 ? (
-            <Vazio titulo="Nenhum material cadastrado" texto="Cadastre materiais para montar a fórmula.">
+            <Vazio titulo="Nenhum material cadastrado" texto="Cadastre materiais para montar a fórmula." icone="layers">
               <Link className="btn prim" to="/materiais/novo">Novo material</Link>
             </Vazio>
           ) : (
@@ -124,17 +135,17 @@ export default function Formula() {
                 const f = itens[m.id];
                 const invertido = f && (lerNumero(f.min) ?? 0) > (lerNumero(f.max) ?? 100);
                 return (
-                  <li key={m.id} className={f ? 'marcado' : ''}>
+                  <li key={m.id} className={`metal ${chaves.get(m.id)} ${f ? 'marcado' : ''}`}>
                     <label className="linha">
                       <input type="checkbox" checked={!!f} onChange={() => alternar(m.id)} />
-                      <span className="grow">{m.name}</span>
-                      <span className="dica">{dinheiro(m.price_per_kg)}/kg</span>
+                      <span className="grow col2"><span className="nome">{m.name}</span><BarraComposicao valores={m.values} atributos={atributos} altura={6} /></span>
+                      <span className="preco">{dinheiro(m.price_per_kg)}<small>/kg</small></span>
                     </label>
                     {f ? (
                       <div className={`faixa ${invertido ? 'ruim' : ''}`}>
-                        <label>Inclusão mín. %<input type="number" min={0} max={100} step="any" value={f.min} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, min: e.target.value } })} /></label>
-                        <label>máx. %<input type="number" min={0} max={100} step="any" value={f.max} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, max: e.target.value } })} /></label>
-                        {invertido ? <small>mínimo acima do máximo</small> : null}
+                        <label>Inclusão mín.<span className="inp"><input type="number" min={0} max={100} step="any" value={f.min} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, min: e.target.value } })} /><em>%</em></span></label>
+                        <label>máx.<span className="inp"><input type="number" min={0} max={100} step="any" value={f.max} onChange={(e) => setItens({ ...itens, [m.id]: { ...f, max: e.target.value } })} /><em>%</em></span></label>
+                        {invertido ? <small className="msg-erro"><Icone nome="alert" tamanho={16} />O mínimo está acima do máximo.</small> : null}
                       </div>
                     ) : null}
                   </li>
@@ -146,57 +157,55 @@ export default function Formula() {
             {entrada.items.length} selecionados · mínimos somam {num(somaMin)}% · máximos somam {num(somaMax)}%
             {somaRuim ? '. Precisa caber 100%.' : ''}
           </p>
-          <button className="btn prim so-celular" onClick={() => setPasso('limites')}>Próximo: limites</button>
+          <button className="btn prim bloco so-celular cta" onClick={() => setPasso('limites')}>Próximo: limites<Icone nome="chev" tamanho={18} /></button>
         </section>
 
         <section className={`painel card ${passo === 'limites' ? 'ativo' : ''}`} aria-labelledby="t-limites">
-          <h2 id="t-limites">2. Limites</h2>
-          <div className="linha-form">
-            <label className="campo grow">Tamanho do lote<input type="number" min={0} step="any" value={lote} onChange={(e) => setLote(e.target.value)} /></label>
-            <label className="campo unidade">Unidade
+          <h2 id="t-limites"><span className="selo-n peq" aria-hidden="true">2</span>Limites</h2>
+          <div className="lote">
+            <label className="campo">Tamanho do lote<input type="number" min={0} step="any" value={lote} onChange={(e) => setLote(e.target.value)} /></label>
+            <label className="campo">Unidade
               <select value={unidade} onChange={(e) => setUnidade(e.target.value as 'kg' | 't')}><option value="kg">kg</option><option value="t">t</option></select>
             </label>
           </div>
           {atributos.length === 0 ? <p className="dica">Nenhum atributo técnico cadastrado. <Link to="/atributos">Criar atributos</Link></p> : (
-            <table className="tabela limites">
-              <thead><tr><th>Atributo</th><th>Mínimo</th><th>Máximo</th></tr></thead>
-              <tbody>
-                {atributos.map((a) => {
-                  const f = limites[a.id] ?? { min: '', max: '' };
-                  const usado = f.min.trim() !== '' || f.max.trim() !== '';
-                  const faltam = usado ? semValor(a.id) : [];
-                  const invertido = usado && f.min.trim() !== '' && f.max.trim() !== '' && (lerNumero(f.min) ?? 0) > (lerNumero(f.max) ?? 0);
-                  return (
-                    <tr key={a.id} className={invertido || faltam.length ? 'ruim' : ''}>
-                      <th scope="row">
-                        {a.name}{a.unit ? <small> ({a.unit})</small> : null}
-                        {invertido ? <small className="alerta">mínimo acima do máximo</small> : null}
-                        {faltam.length ? <small className="alerta">sem valor em: {faltam.join(', ')}</small> : null}
-                      </th>
-                      <td><input aria-label={`Mínimo de ${a.name}`} type="number" step="any" placeholder="—" value={f.min} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, min: e.target.value } })} /></td>
-                      <td><input aria-label={`Máximo de ${a.name}`} type="number" step="any" placeholder="—" value={f.max} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, max: e.target.value } })} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <ul className="limites">
+              {atributos.map((a) => {
+                const f = limites[a.id] ?? { min: '', max: '' };
+                const usado = f.min.trim() !== '' || f.max.trim() !== '';
+                const faltam = usado ? semValor(a.id) : [];
+                const invertido = usado && f.min.trim() !== '' && f.max.trim() !== '' && (lerNumero(f.min) ?? 0) > (lerNumero(f.max) ?? 0);
+                return (
+                  <li key={a.id} className={`${metal(a.name)} ${invertido || faltam.length ? 'ruim' : ''}`}>
+                    <span className="lim-top"><Plaquinha nome={a.name} tamanho="grande" /><b>{a.name}</b>{a.unit && a.unit !== '%' ? <span className="dica">({a.unit})</span> : null}</span>
+                    <div className="mm">
+                      <label className="campo">Mínimo<span className="inp"><input aria-label={`Mínimo de ${a.name}`} type="number" step="any" placeholder="—" value={f.min} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, min: e.target.value } })} />{a.unit ? <em>{a.unit}</em> : null}</span></label>
+                      <span className="ate" aria-hidden="true">até</span>
+                      <label className="campo">Máximo<span className="inp"><input aria-label={`Máximo de ${a.name}`} type="number" step="any" placeholder="—" value={f.max} onChange={(e) => setLimites({ ...limites, [a.id]: { ...f, max: e.target.value } })} />{a.unit ? <em>{a.unit}</em> : null}</span></label>
+                    </div>
+                    {invertido ? <p className="msg-erro"><Icone nome="alert" tamanho={16} />O mínimo está acima do máximo.</p> : null}
+                    {faltam.length ? <p className="msg-erro"><Icone nome="alert" tamanho={16} />Sem valor em: {faltam.join(', ')}</p> : null}
+                  </li>
+                );
+              })}
+            </ul>
           )}
           <p className="dica">Deixe em branco o lado que não tem limite.</p>
-          <button className="btn prim" onClick={() => calcular()} disabled={calculo.ocupado || entrada.items.length === 0}>
-            {calculo.ocupado ? 'Calculando…' : 'Calcular composição'}
+          <button className="btn prim bloco cta" onClick={() => calcular()} disabled={calculo.ocupado || entrada.items.length === 0}>
+            <Icone nome="play" tamanho={18} />{calculo.ocupado ? 'Calculando…' : 'Calcular mistura'}
           </button>
         </section>
 
         <section className={`painel card ${passo === 'resultado' ? 'ativo' : ''}`} aria-labelledby="t-resultado" aria-live="polite">
-          <h2 id="t-resultado">3. Resultado</h2>
+          <h2 id="t-resultado"><span className="selo-n peq" aria-hidden="true">3</span>Resultado</h2>
           {desatualizado ? (
             <p className="aviso">Os dados mudaram depois do cálculo. <button className="btn sec peq" onClick={() => calcular()}>Calcular de novo</button></p>
           ) : null}
-          {calculo.ocupado ? <Carregando texto="Calculando a composição…" />
+          {calculo.ocupado ? <HeroCalculando />
             : calculo.erro ? <Falha erro={calculo.erro} />
-            : calculo.resultado?.status === 'optimal' ? <PainelResultado r={calculo.resultado} />
-            : calculo.resultado?.status === 'no_solution' ? <PainelSemSolucao r={calculo.resultado} revisar={() => setPasso('limites')} />
-            : <Vazio titulo="Ainda sem cálculo" texto="Escolha os materiais e os limites e toque em Calcular composição." />}
+            : calculo.resultado?.status === 'optimal' ? <PainelResultado r={calculo.resultado} cores={cores} />
+            : calculo.resultado?.status === 'no_solution' ? <PainelSemSolucao r={calculo.resultado} minimos={minimos} revisar={() => setPasso('limites')} />
+            : <Vazio titulo="Ainda sem cálculo" texto="Escolha os materiais e os limites e toque em Calcular mistura." icone="cadinho" />}
 
           <form className="salvar" onSubmit={salvar}>
             <label className="campo grow">Nome da fórmula<input required maxLength={120} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Liga padrão" /></label>

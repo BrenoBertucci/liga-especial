@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
 
+import { Logo } from './componentes';
+import { Icone, type NomeIcone } from './icones';
 import Atributos from './paginas/Atributos';
 import Formula from './paginas/Formula';
 import Formulas from './paginas/Formulas';
@@ -8,11 +10,11 @@ import Inicio from './paginas/Inicio';
 import MaterialForm from './paginas/MaterialForm';
 import Materiais from './paginas/Materiais';
 
-const LINKS = [
-  { para: '/', rotulo: 'Início' },
-  { para: '/materiais', rotulo: 'Materiais' },
-  { para: '/formulas', rotulo: 'Fórmulas' },
-  { para: '/atributos', rotulo: 'Atributos' },
+const LINKS: { para: string; rotulo: string; icone: NomeIcone }[] = [
+  { para: '/', rotulo: 'Início', icone: 'pie' },
+  { para: '/materiais', rotulo: 'Materiais', icone: 'layers' },
+  { para: '/formulas', rotulo: 'Fórmulas', icone: 'cadinho' },
+  { para: '/atributos', rotulo: 'Atributos', icone: 'sliders' },
 ];
 
 type Tema = 'claro' | 'escuro';
@@ -38,22 +40,27 @@ export default function App() {
     }
   }, [tema]);
 
-  const links = LINKS.map((l) => (
-    <NavLink key={l.para} to={l.para} end={l.para === '/'}>{l.rotulo}</NavLink>
-  ));
-
+  // Computador: menu lateral. Tablet: trilho. Celular: barra de cima e abas embaixo.
   return (
     <div className="app">
-      <header className="topo">
+      <aside className="lateral">
         <Link to="/" className="marca" aria-label="Liga Especial, início">
-          <span className="logo" aria-hidden="true"><i /><i /><i /><i /></span>
-          Liga Especial
+          <Logo />
+          <span className="marca-texto"><b>Liga Especial</b><small>Otimizador de mistura</small></span>
         </Link>
-        <nav className="nav-topo" aria-label="Principal">{links}</nav>
-        <button className="btn sec peq" onClick={() => setTema(tema === 'claro' ? 'escuro' : 'claro')}>
-          {tema === 'claro' ? 'Tema escuro' : 'Tema claro'}
+        <nav className="menu" aria-label="Principal">
+          {LINKS.map((l) => (
+            <NavLink key={l.para} to={l.para} end={l.para === '/'}>
+              <span className="menu-ic"><Icone nome={l.icone} /></span>{l.rotulo}
+            </NavLink>
+          ))}
+        </nav>
+        <p className="dica-lateral"><b>Dica</b>Abra uma fórmula, mude um limite e calcule de novo para comparar.</p>
+        <button className="btn sec tema" onClick={() => setTema(tema === 'claro' ? 'escuro' : 'claro')}>
+          <Icone nome={tema === 'claro' ? 'lua' : 'sol'} />
+          <span className="tema-rot">{tema === 'claro' ? 'Tema escuro' : 'Tema claro'}</span>
         </button>
-      </header>
+      </aside>
       <main className="conteudo">
         <Routes>
           <Route path="/" element={<Inicio />} />
@@ -67,7 +74,6 @@ export default function App() {
           <Route path="*" element={<p className="estado">Página não encontrada. <Link to="/">Voltar ao início</Link></p>} />
         </Routes>
       </main>
-      <nav className="nav-baixo" aria-label="Principal">{links}</nav>
     </div>
   );
 }

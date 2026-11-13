@@ -92,4 +92,3 @@ export const dinheiro = (v: number) =>
 export const comUnidade = (v: number, unidade: string) => (unidade === '%' ? `${num(v)}%` : `${num(v)} ${unidade}`.trim());
 // Campo vazio = sem valor; vírgula também vale
 export const lerNumero = (s: string): number | null => (s.trim() === '' ? null : Number(s.replace(',', '.')));
-export const CORES = ['#B8862B', '#B4532A', '#12857A', '#5B5BD6', '#7D8BA0', '#A0527A', '#4D7F3A', '#2F6FA3'];

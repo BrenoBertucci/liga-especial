@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { api, ErroApi, num, useCarregar } from '../api';
 import { AvisoDaNavegacao, Cabecalho, Carregando, Falha, Vazio } from '../componentes';
+import { Icone } from '../icones';
 
 export default function Formulas() {
   const r = useCarregar(() => api.formulas(), []);
@@ -21,13 +22,13 @@ export default function Formulas() {
 
   return (
     <div className="pagina">
-      <Cabecalho titulo="Fórmulas salvas" sub="Abra para ver, editar ou recalcular com os preços de hoje.">
-        <Link className="btn prim" to="/formulas/nova">Nova fórmula</Link>
+      <Cabecalho eyebrow="Fórmulas" titulo="Fórmulas salvas" sub="Abra para ver, editar ou recalcular com os preços de hoje.">
+        <Link className="btn prim" to="/formulas/nova"><Icone nome="plus" tamanho={18} />Nova fórmula</Link>
       </Cabecalho>
       <AvisoDaNavegacao />
       {erro ? <Falha erro={erro} /> : null}
       {r.carregando ? <Carregando /> : r.erro ? <Falha erro={r.erro} tentar={r.recarregar} /> : (r.dados ?? []).length === 0 ? (
-        <Vazio titulo="Nenhuma fórmula salva" texto="Calcule uma composição e salve para usar de novo.">
+        <Vazio titulo="Nenhuma fórmula salva" texto="Calcule uma mistura e salve para usar de novo." icone="cadinho">
           <Link className="btn prim" to="/formulas/nova">Nova fórmula</Link>
         </Vazio>
       ) : (
@@ -44,7 +45,7 @@ export default function Formulas() {
                   <td>{new Date(f.updated_at).toLocaleDateString('pt-BR')}</td>
                   <td className="acoes-linha">
                     <Link className="btn sec peq" to={`/formulas/${f.id}`}>Abrir</Link>
-                    <button className="btn perigo peq" onClick={() => excluir(f.id, f.name)}>Excluir</button>
+                    <button className="btn perigo peq" onClick={() => excluir(f.id, f.name)}><Icone nome="trash" tamanho={16} />Excluir</button>
                   </td>
                 </tr>
               ))}
