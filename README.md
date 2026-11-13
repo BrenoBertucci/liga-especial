@@ -21,8 +21,9 @@ createdb -U postgres liga_especial
 python -m venv .venv
 .venv\Scripts\activate          # Windows (Linux/Mac: source .venv/bin/activate)
 pip install -r requirements.txt
-uvicorn main:app --reload
 ```
+
+Não precisa iniciar a API aqui: o `npm run dev` do frontend já sobe ela. Para rodar só a API, use `uvicorn main:app --reload`.
 
 A conexão padrão é `postgresql+psycopg://postgres@localhost:5432/liga_especial`, com a senha lida do `pgpass.conf`. Para outro usuário ou senha, defina `DATABASE_URL` antes de iniciar:
 
@@ -47,6 +48,8 @@ Na primeira execução, o backend cria as tabelas e cadastra os dados da planilh
 npm install
 npm run dev
 ```
+
+O `npm run dev` sobe a API (porta 8000) e o site (porta 5181) no mesmo terminal, e o Ctrl+C para os dois. Se a API já estiver aberta em outro terminal, o site usa essa.
 
 Acesse http://localhost:5181. As chamadas para `/api` são repassadas ao backend na porta 8000.
 
