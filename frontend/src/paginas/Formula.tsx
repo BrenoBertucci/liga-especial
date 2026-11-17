@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { api, dinheiro, ErroApi, lerNumero, num, numeroRuim, useCarregar, type Entrada, type Formula as FormulaSalva, type Resultado } from '../api';
-import { AvisoDaNavegacao, BarraComposicao, Cabecalho, Carregando, chavesDosMateriais, coresDosMateriais, elemento, Falha, metal, Plaquinha, Vazio } from '../componentes';
+import { AvisoDaNavegacao, BarraComposicao, Cabecalho, Carregando, chavesDosMateriais, elemento, Falha, metal, Plaquinha, Vazio } from '../componentes';
 import { Icone } from '../icones';
 import { HeroCalculando, PainelResultado, PainelSemSolucao } from './Resultado';
 
@@ -111,7 +111,6 @@ export default function Formula() {
   const camposRuins = loteRuim || Object.values(itens).some(faixaRuim) || Object.values(limites).some(limiteRuim);
   const semValor = (aid: number) => materiais.filter((m) => itens[m.id] && !m.values.some((v) => v.attribute_id === aid)).map((m) => m.name);
   const desatualizado = calculo.de !== undefined && !calculo.ocupado && calculo.de !== JSON.stringify(entrada);
-  const cores = coresDosMateriais(materiais, atributos);
   const chaves = chavesDosMateriais(materiais, atributos);
   const indicePasso = PASSOS.findIndex(([p]) => p === passo);
 
@@ -261,7 +260,7 @@ export default function Formula() {
           ) : null}
           {calculo.ocupado ? <HeroCalculando />
             : calculo.erro ? <Falha erro={calculo.erro} />
-            : calculo.resultado?.status === 'optimal' ? <PainelResultado r={calculo.resultado} cores={cores} />
+            : calculo.resultado?.status === 'optimal' ? <PainelResultado r={calculo.resultado} chaves={chaves} />
             : calculo.resultado?.status === 'no_solution' ? <PainelSemSolucao r={calculo.resultado} minimos={minimos} revisar={() => setPasso('limites')} />
             : <Vazio titulo="Ainda sem cálculo" texto="Escolha os materiais e os limites e toque em Calcular mistura." icone="cadinho" />}
 

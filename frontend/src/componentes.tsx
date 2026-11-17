@@ -97,8 +97,12 @@ export function chavesDosMateriais(materiais: Material[], atributos: Atributo[])
   }));
 }
 
-export const coresDosMateriais = (materiais: Material[], atributos: Atributo[]) =>
-  new Map([...chavesDosMateriais(materiais, atributos)].map(([id, chave]) => [id, `var(--${chave})`]));
+// Plaquinha pela chave do material: símbolo do elemento quando é puro, lingote quando é mistura
+export function PlaquinhaDoMaterial({ chave }: { chave?: string }) {
+  const e = Object.values(ELEMENTOS).find((x) => x.chave === chave);
+  if (!e) return <span className="plaquinha liga" aria-hidden="true"><Icone nome="lingote" tamanho={22} /></span>;
+  return <span className={`plaquinha ${e.chave}`} aria-hidden="true"><small>{e.z}</small>{e.simbolo}</span>;
+}
 
 // Barrinha com o teor de cada elemento do material, na cor do elemento
 export function BarraComposicao({ valores, atributos, altura = 8 }: { valores: Valor[]; atributos: Atributo[]; altura?: number }) {

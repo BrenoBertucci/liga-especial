@@ -1,6 +1,6 @@
 // O que sai do cálculo: receita ótima, faixa de cada limite, calculando, sem solução e as regras usadas
 import { comUnidade, dinheiro, num, type Modelo, type Otimo, type SemSolucao } from '../api';
-import { elemento, metal, Plaquinha } from '../componentes';
+import { elemento, PlaquinhaDoMaterial } from '../componentes';
 import { Icone } from '../icones';
 
 const ROTULO_ATIVO = { min: 'no mínimo', max: 'no máximo' };
@@ -18,9 +18,9 @@ function LinhaLimite({ l, unidade }: { l: LimiteObtido; unidade: string }) {
   const cor = elemento(l.name)?.cor ?? 'var(--text)';
   const p = posicoes(l);
   return (
-    <div className={`rng ${metal(l.name)}`}>
+    <li className="rng">
       <div className="rng-top">
-        {elemento(l.name) ? <Plaquinha nome={l.name} /> : <span className="dot" style={{ background: cor }} />}<b>{l.name}</b>
+        <span className="dot" style={{ background: cor }} /><b>{l.name}</b>
         <span className="val">{comUnidade(l.value, unidade)}</span>
         <span className={`chip ${l.ok ? 'bom' : 'ruim'}`}>{l.ok ? <Icone nome="check" tamanho={12} /> : null}{l.ok ? 'Atende' : 'Fora'}</span>
       </div>
@@ -32,11 +32,11 @@ function LinhaLimite({ l, unidade }: { l: LimiteObtido; unidade: string }) {
         <span className={l.binding === 'min' ? 'ativo' : ''}>{l.min === null ? 'sem mínimo' : `mín ${comUnidade(l.min, unidade)}`}{l.binding === 'min' ? ' · no limite' : ''}</span>
         <span className={l.binding === 'max' ? 'ativo' : ''}>{l.max === null ? 'sem máximo' : `máx ${comUnidade(l.max, unidade)}`}{l.binding === 'max' ? ' · no limite' : ''}</span>
       </div>
-    </div>
+    </li>
   );
 }
 
-export function PainelResultado({ r, cores }: { r: Otimo; cores: Map<number, string> }) {
+export function PainelResultado({ r, chaves }: { r: Otimo; chaves: Map<number, string> }) {
   const usados = r.items.filter((i) => i.pct > 1e-6).sort((a, b) => b.pct - a.pct);
   const fora = r.items.filter((i) => i.pct <= 1e-6);
   const limitados = new Set(r.limits.map((l) => l.attribute_id));
@@ -60,18 +60,23 @@ export function PainelResultado({ r, cores }: { r: Otimo; cores: Map<number, str
 
       <section className="card receita" aria-labelledby="t-receita">
         <div className="card-h"><h3 id="t-receita">Receita</h3><span className="dica">para {num(r.batch_size)} {r.batch_unit} de liga</span></div>
+        {/* O lingote da liga, fatiado em cada material na própria superfície de metal */}
         <div className="lingote" aria-hidden="true">
-          {usados.map((i) => <i key={i.material_id} style={{ flexGrow: i.pct, backgroundColor: cores.get(i.material_id) }} />)}
+          {usados.map((i) => <i key={i.material_id} className={`metal ${chaves.get(i.material_id) ?? ''}`} style={{ flexGrow: i.pct }} />)}
         </div>
-        <ul className="lista">
+        <ul className="lingos">
           {usados.map((i) => (
-            <li key={i.material_id}>
-              <span className="sw" style={{ background: cores.get(i.material_id) }} />
-              <span className="grow col2">
-                <b>{i.name}{i.binding ? <span className="chip aviso-chip">{ROTULO_ATIVO[i.binding]}</span> : null}</b>
-                <span className="dica">{dinheiro(i.price_per_kg)}/kg · custo {dinheiro(i.cost)}</span>
-              </span>
-              <span className="r-num"><b>{num(i.quantity, 3)} {r.batch_unit}</b><span className="dica">{num(i.pct)}%</span></span>
+            <li key={i.material_id} className={`lingo metal ${chaves.get(i.material_id) ?? ''}`}>
+              <div className="lingo-top">
+                <PlaquinhaDoMaterial chave={chaves.get(i.material_id)} />
+                <span className="grow col2">
+                  <b className="lingo-nome">{i.name}{i.binding ? <span className="chip aviso-chip">{ROTULO_ATIVO[i.binding]}</span> : null}</b>
+                  <span className="dica">{dinheiro(i.price_per_kg)}/kg · custo {dinheiro(i.cost)}</span>
+                </span>
+                <span className="lingo-qtd"><b>{num(i.quantity, 3)}<small> {r.batch_unit}</small></b><span className="dica">{num(i.pct)}%</span></span>
+              </div>
+              {/* Régua de metal fundido: quanto do lote este material ocupa */}
+              <div className="lingo-nivel" aria-hidden="true"><i style={{ width: `${i.pct}%` }} /></div>
             </li>
           ))}
         </ul>
@@ -81,7 +86,7 @@ export function PainelResultado({ r, cores }: { r: Otimo; cores: Map<number, str
       <section className="card" aria-labelledby="t-composicao">
         <div className="card-h"><h3 id="t-composicao">Composição da liga</h3>{r.limits.length ? <span className="dica">{atendem} de {r.limits.length} atendem</span> : null}</div>
         {r.limits.length === 0 ? <p className="dica">Esta fórmula não limita nenhum atributo.</p> : (
-          <div className="pilha">{r.limits.map((l) => <LinhaLimite key={l.attribute_id} l={l} unidade={l.unit} />)}</div>
+          <ul className="comp">{r.limits.map((l) => <LinhaLimite key={l.attribute_id} l={l} unidade={l.unit} />)}</ul>
         )}
         {outros.length > 0 ? (
           <p className="foot">Outros atributos da mistura: {outros.map((a) => `${a.name} ${comUnidade(a.value, a.unit)}`).join(' · ')}.</p>

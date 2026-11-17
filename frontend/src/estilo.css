@@ -147,7 +147,6 @@ ul.card.lista li { padding: 11px 0; }
 .estado { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 24px 0; }
 .giro { width: 18px; height: 18px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: giro 0.8s linear infinite; }
 @keyframes giro { to { transform: rotate(360deg); } }
-.sw { width: 12px; height: 12px; border-radius: 4px; flex: none; display: inline-block; }
 .preco { font-weight: 800; white-space: nowrap; }
 .preco small { font-size: 12px; color: var(--muted); font-weight: 600; }
 
@@ -271,23 +270,39 @@ ul.card.lista li { padding: 11px 0; }
 .skel { display: inline-block; vertical-align: middle; border-radius: 7px; background: var(--surface-2); }
 .hero .skel { background: rgba(255, 255, 255, 0.14); border-radius: 12px; }
 /* Barra da receita com cara de lingote: silhueta de trapézio e brilho de metal polido */
-.lingote { display: flex; gap: 2px; height: 26px; padding: 4px 6px; background: var(--surface-2); clip-path: polygon(1.5% 0, 98.5% 0, 100% 100%, 0 100%); border-radius: 4px; }
+.lingote { display: flex; gap: 2px; height: 34px; padding: 4px 6px; background: var(--surface-2); clip-path: polygon(1.5% 0, 98.5% 0, 100% 100%, 0 100%); border-radius: 4px; }
 .lingote i { display: block; flex-basis: 0; min-width: 6px; border-radius: 3px; background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.08) 40%, rgba(0, 0, 0, 0) 62%, rgba(0, 0, 0, 0.24) 100%); }
-.receita .r-num { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
-.receita li { flex-wrap: nowrap; align-items: flex-start; }
-.receita .sw { margin-top: 4px; }
-.receita b .chip { margin-left: 6px; vertical-align: 1px; }
+/* Receita é o que vai para a produção: cada material vira um lingote na própria superfície de metal,
+   com a quantidade em destaque e uma régua de metal fundido com a parte dele no lote */
+.receita .card-h h3 { font-size: 18px; font-weight: 800; }
+.lingote i.metal { border: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 0 rgba(0, 0, 0, 0.16); }
+.lingos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.lingo { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 16px; }
+.lingo-top { display: flex; align-items: center; gap: 12px; }
+.lingo .plaquinha { width: 40px; height: 40px; font-size: 18px; padding-top: 6px; }
+.lingo .plaquinha.liga { padding-top: 0; }
+.lingo-nome { font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+.lingo-nome .chip { margin-left: 6px; vertical-align: 2px; }
+.lingo-qtd { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+.lingo-qtd b { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.lingo-qtd small { font-size: 14px; font-weight: 700; letter-spacing: 0; }
+.lingo-nivel { height: 8px; border-radius: 99px; background: var(--mt-trilha); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16); overflow: hidden; }
+.lingo-nivel i { display: block; height: 100%; min-width: 4px; border-radius: 99px; background: var(--fundido); }
 .foot { font-size: 13px; color: var(--muted); font-weight: 600; }
-.rng { display: flex; flex-direction: column; gap: 9px; padding: 14px; border-radius: 16px; }
-.rng:not(.metal) { background: var(--alu); border: 1.5px solid var(--alu-aro); box-shadow: 0 0 0 1px var(--alu-anel), inset 0 1px 0 var(--alu-luz); }
 .pilha { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.rng-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Composição em linhas finas: confere a faixa de cada elemento sem disputar atenção com a receita */
+.comp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rng { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.rng:first-child { border-top: 0; padding-top: 0; }
+.rng:last-child { padding-bottom: 0; }
+.rng-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.rng-top .chip { padding: 2px 7px; font-size: 11px; }
 .val { margin-left: auto; font-weight: 800; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
-.track { position: relative; height: 10px; border-radius: 99px; background: var(--surface-2); }
+.track { position: relative; height: 6px; border-radius: 99px; background: var(--surface-2); }
 .band { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--band); }
-.mark { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 3px solid var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28); }
-.rng-lbl { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.mark { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2.5px solid var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28); }
+.rng-lbl { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .rng-lbl .ativo { color: var(--text); font-weight: 700; }
 .vazio-erro { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 28px 20px; background: var(--alu); border: 1.5px solid var(--alu-aro); box-shadow: 0 0 0 1px var(--alu-anel), inset 0 1px 0 var(--alu-luz); border-radius: 24px; }
 .vazio-erro .vazio-ic { width: 64px; height: 64px; border-radius: 20px; background: var(--bad-soft); color: var(--bad); }
