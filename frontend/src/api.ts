@@ -22,13 +22,20 @@ export type Otimo = {
 export type SemSolucao = { status: 'no_solution'; message: string; hints: string[]; model: Modelo };
 export type Resultado = Otimo | SemSolucao;
 
+export type Conta = { email: string };
+
 export class ErroApi extends Error {
   detalhes: string[];
-  constructor(mensagem: string, detalhes: string[] = [], opcoes?: ErrorOptions) {
+  status: number;
+  constructor(mensagem: string, detalhes: string[] = [], status = 0, opcoes?: ErrorOptions) {
     super(mensagem, opcoes);
     this.detalhes = detalhes;
+    this.status = status;
   }
 }
+
+// Sessão vencida ou encerrada em outra aba: o app volta para a tela de entrar
+export const SEM_SESSAO = 'liga-sem-sessao';
 
 async function pedir<T>(metodo: string, caminho: string, corpo?: unknown): Promise<T> {
   let r: Response;
@@ -40,14 +47,15 @@ async function pedir<T>(metodo: string, caminho: string, corpo?: unknown): Promi
     });
   } catch (causa) {
     // Sem detalhe de porta ou endereço na tela: quem usa só precisa saber que o servidor não respondeu
-    throw new ErroApi('Sem conexão com o servidor. Tente de novo em instantes.', [], { cause: causa });
+    throw new ErroApi('Sem conexão com o servidor. Tente de novo em instantes.', [], 0, { cause: causa });
   }
+  if (r.status === 401 && !caminho.startsWith('/auth/')) window.dispatchEvent(new Event(SEM_SESSAO));
   if (r.status === 204) return undefined as T;
   const dados = await r.json().catch(() => null);
   if (!r.ok) {
     const e = dados?.error;
     const detalhes = (e?.details ?? []).map((d: { field?: string; issue: string }) => (d.field ? `${d.field}: ${d.issue}` : d.issue));
-    throw new ErroApi(e?.message ?? `A API respondeu ${r.status}.`, detalhes);
+    throw new ErroApi(e?.message ?? `A API respondeu ${r.status}.`, detalhes, r.status);
   }
   return dados as T;
 }
@@ -55,6 +63,10 @@ async function pedir<T>(metodo: string, caminho: string, corpo?: unknown): Promi
 const salvar = <T,>(caminho: string, corpo: unknown, id?: number) => pedir<T>(id ? 'PUT' : 'POST', id ? `${caminho}/${id}` : caminho, corpo);
 
 export const api = {
+  conta: () => pedir<Conta>('GET', '/auth/me'),
+  entrar: (email: string, password: string) => pedir<Conta>('POST', '/auth/login', { email, password }),
+  criarConta: (email: string, password: string) => pedir<Conta>('POST', '/auth/register', { email, password }),
+  sair: () => pedir<void>('POST', '/auth/logout'),
   atributos: () => pedir<Atributo[]>('GET', '/attributes'),
   salvarAtributo: (a: Omit<Atributo, 'id'>, id?: number) => salvar<Atributo>('/attributes', a, id),
   excluirAtributo: (id: number) => pedir<void>('DELETE', `/attributes/${id}`),

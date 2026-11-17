@@ -22,7 +22,7 @@ function Lingote({ x, y }: { x: number; y: number }) {
   );
 }
 
-function Lingotes() {
+export function Lingotes() {
   return (
     <svg className="lingotes" viewBox="0 0 300 180" aria-hidden="true" focusable="false">
       <defs>

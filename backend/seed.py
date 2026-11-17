@@ -1,5 +1,5 @@
-"""Dados de demonstração: os mesmos preços, teores e limites da planilha Liga_Especial_Solver.xlsx."""
-from sqlalchemy import select
+"""Dados de demonstração: os mesmos preços, teores e limites da planilha Liga_Especial_Solver.xlsx.
+Cada conta nova recebe a própria cópia, para já abrir com a Liga padrão pronta."""
 from sqlalchemy.orm import Session
 
 from db import Attribute, Formula, FormulaAttributeLimit, FormulaItem, Material, MaterialAttributeValue
@@ -17,14 +17,12 @@ MATERIAIS = [
 LIMITES = [(60, 65), (15, 20), (15, 20), (5, 8)]
 
 
-def seed_if_empty(db: Session) -> None:
-    if db.scalar(select(Attribute.id).limit(1)) is not None:
-        return
-    atributos = [Attribute(name=n, unit=u) for n, u in ATRIBUTOS]
+def semear_conta(db: Session, user_id: int) -> None:
+    atributos = [Attribute(user_id=user_id, name=n, unit=u) for n, u in ATRIBUTOS]
     db.add_all(atributos)
     db.flush()
     materiais = [
-        Material(name=nome, price_per_kg=preco, values=[
+        Material(user_id=user_id, name=nome, price_per_kg=preco, values=[
             MaterialAttributeValue(attribute_id=a.id, value=v) for a, v in zip(atributos, teores)
         ])
         for nome, preco, teores in MATERIAIS
@@ -32,8 +30,7 @@ def seed_if_empty(db: Session) -> None:
     db.add_all(materiais)
     db.flush()
     db.add(Formula(
-        name="Liga padrão", batch_size=1000, batch_unit="kg",
+        user_id=user_id, name="Liga padrão", batch_size=1000, batch_unit="kg",
         items=[FormulaItem(material_id=m.id, min_pct=0, max_pct=100) for m in materiais],
         limits=[FormulaAttributeLimit(attribute_id=a.id, min_value=lo, max_value=hi) for a, (lo, hi) in zip(atributos, LIMITES)],
     ))
-    db.commit()

@@ -65,6 +65,24 @@ code, .mono { font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; 
 .dica-lateral { background: var(--surface-2); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
 .dica-lateral b { color: var(--text); }
 .tema { justify-content: flex-start; }
+/* Conta no menu: e-mail de quem está usando e o botão de sair */
+.conta { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: 14px; background: var(--surface-2); }
+.conta-email { flex: 1; min-width: 0; font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn.sair { min-height: 44px; padding: 0 12px; font-size: 14px; border-radius: 12px; }
+/* Entrar: herói de grafite com os lingotes ao lado do formulário; no celular, um embaixo do outro */
+.entrar { position: relative; min-height: 100dvh; width: 100%; max-width: 1180px; margin: 0 auto; padding: 32px; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px; align-items: center; }
+/* Texto em cima e os lingotes embaixo: na coluna estreita eles não cobrem o título */
+.hero.inicio.entrar-hero { min-height: 520px; justify-content: flex-start; padding-bottom: 210px; }
+.entrar-hero .lingotes { width: 250px; right: 28px; bottom: 26px; }
+.entrar-form { width: 100%; max-width: 440px; justify-self: center; gap: 16px; padding: 28px; }
+.entrar-form h2 { font-size: 22px; font-weight: 800; }
+.entrar-tema { position: absolute; top: 16px; right: 16px; z-index: 2; }
+.entrar-tema .tema { width: 44px; min-height: 44px; padding: 0; justify-content: center; border-radius: 14px; }
+.entrar-tema .tema-rot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.segmento { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
+.segmento button { min-height: 44px; border: 0; border-radius: 11px; background: none; font-weight: 700; color: var(--muted); cursor: pointer; }
+.segmento button[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+.entrar-form .com-icone svg { color: var(--muted); }
 .conteudo { min-width: 0; width: 100%; max-width: 1320px; margin: 0 auto; padding: 28px 36px 40px; }
 .pagina { display: flex; flex-direction: column; gap: 20px; }
 .pagina.estreita { max-width: 760px; width: 100%; margin: 0 auto; }
@@ -393,7 +411,13 @@ ul.card.lista li { padding: 11px 0; }
   .menu a:hover .menu-ic { background: var(--surface-2); }
   .menu a.active .menu-ic { background: var(--accent-soft); color: var(--accent-ink); }
   .tema { width: 44px; min-height: 44px; padding: 0; justify-content: center; border-radius: 14px; }
-  .tema-rot { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tema-rot, .sair-rot, .conta-email { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .conta { padding: 0; background: none; }
+  .btn.sair { width: 44px; padding: 0; border-radius: 14px; }
+  .entrar { grid-template-columns: minmax(0, 1fr); max-width: 560px; padding: 72px 16px 24px; align-items: start; }
+  .hero.inicio.entrar-hero { min-height: 0; padding-bottom: 32px; }
+  .entrar-hero .lingotes { display: none; }
+  .entrar-form { max-width: none; }
   .hero.inicio { min-height: 0; }
   .lingotes { width: 220px; right: 24px; bottom: 20px; opacity: 0.55; }
 }
@@ -412,6 +436,8 @@ ul.card.lista li { padding: 11px 0; }
 @media (max-width: 699px) {
   .app { display: flex; flex-direction: column; }
   .lateral { height: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .conta { margin-left: auto; }
+  .entrar-form { padding: 22px 18px; }
   .marca { padding: 0; }
   .logo { width: 32px; height: 32px; border-radius: 10px; padding: 7px 6px; }
   .menu { position: fixed; left: 0; right: 0; bottom: 0; flex-direction: row; justify-content: space-around; gap: 0; background: var(--surface); border-top: 1px solid var(--line); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); }

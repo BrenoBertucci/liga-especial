@@ -1,9 +1,9 @@
-"""Banco: conexão, sessão e as seis tabelas do rascunho."""
+"""Banco: conexão, sessão e as tabelas do rascunho. Cada atributo, material e fórmula tem dono (user_id)."""
 import os
 import re
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text, create_engine, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, UniqueConstraint, create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 # Sem senha no código: passe DATABASE_URL completa, ou deixe o libpq ler do pgpass.conf / PGPASSWORD
@@ -15,22 +15,66 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 
+def get_db():
+    with SessionLocal() as db:
+        yield db
+
+
 class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Guardado em minúsculas: "Ana@x.com" e "ana@x.com" são a mesma conta
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    # argon2id; "!" marca conta que não entra (dono dos dados de antes das contas)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserSession(Base):
+    __tablename__ = "sessions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    # Só o SHA-256 do token: quem lê o banco não consegue usar a sessão de ninguém
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AuthAttempt(Base):
+    """Senha errada (kind "login", chave = e-mail) e conta criada (kind "cadastro"), para frear abuso."""
+    __tablename__ = "auth_attempts"
+    __table_args__ = (Index("ix_auth_attempts_kind_key_created_at", "kind", "key", "created_at"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(10))
+    key: Mapped[str] = mapped_column(String(254))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+def dono():
+    return mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+
 class Attribute(Base):
     __tablename__ = "attributes"
+    # Nome único dentro da conta; outra conta pode ter um "Ferro" também
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_attributes_user_name"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(80), unique=True)
+    user_id: Mapped[int] = dono()
+    name: Mapped[str] = mapped_column(String(80))
     unit: Mapped[str] = mapped_column(String(20), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Material(Base):
     __tablename__ = "materials"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_materials_user_name"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
+    user_id: Mapped[int] = dono()
+    name: Mapped[str] = mapped_column(String(120))
     price_per_kg: Mapped[float] = mapped_column(Float)
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -47,8 +91,10 @@ class MaterialAttributeValue(Base):
 
 class Formula(Base):
     __tablename__ = "formulas"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_formulas_user_name"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
+    user_id: Mapped[int] = dono()
+    name: Mapped[str] = mapped_column(String(120))
     batch_size: Mapped[float] = mapped_column(Float)
     batch_unit: Mapped[str] = mapped_column(String(5), default="kg")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,9 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink, Route, Routes, useParams } from 'react-router-dom';
+import { Link, NavLink, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 
-import { Logo } from './componentes';
+import { api, SEM_SESSAO, type Conta, type ErroApi } from './api';
+import { Carregando, Falha, Logo } from './componentes';
 import { Icone, type NomeIcone } from './icones';
 import Atributos from './paginas/Atributos';
+import Entrar from './paginas/Entrar';
 import Formula from './paginas/Formula';
 import Formulas from './paginas/Formulas';
 import Inicio from './paginas/Inicio';
@@ -36,8 +38,22 @@ function temaInicial(): Tema {
   return matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
 }
 
+// Rascunho de fórmula nova fica na aba: ao trocar de conta ele não passa de uma pessoa para outra
+function limparRascunhos() {
+  try {
+    sessionStorage.clear();
+  } catch {
+    // modo privado: não há o que limpar
+  }
+}
+
 export default function App() {
   const [tema, setTema] = useState<Tema>(temaInicial);
+  // undefined: ainda conferindo a sessão; null: ninguém entrou
+  const [conta, setConta] = useState<Conta | null | undefined>(undefined);
+  const [erroConta, setErroConta] = useState<ErroApi | null>(null);
+  const navegar = useNavigate();
+
   useEffect(() => {
     document.documentElement.dataset.tema = tema;
     try {
@@ -46,6 +62,36 @@ export default function App() {
       // modo privado: o tema só não fica salvo
     }
   }, [tema]);
+
+  useEffect(() => {
+    const semSessao = () => setConta(null);
+    window.addEventListener(SEM_SESSAO, semSessao);
+    api.conta().then(setConta, (e: ErroApi) => (e.status === 401 ? setConta(null) : setErroConta(e)));
+    return () => window.removeEventListener(SEM_SESSAO, semSessao);
+  }, []);
+
+  function entrou(c: Conta) {
+    limparRascunhos();
+    setConta(c);
+  }
+
+  async function sair() {
+    await api.sair().catch(() => undefined);
+    limparRascunhos();
+    setConta(null);
+    navegar('/');
+  }
+
+  const botaoTema = (
+    <button className="btn sec tema" onClick={() => setTema(tema === 'claro' ? 'escuro' : 'claro')}>
+      <Icone nome={tema === 'claro' ? 'lua' : 'sol'} />
+      <span className="tema-rot">{tema === 'claro' ? 'Tema escuro' : 'Tema claro'}</span>
+    </button>
+  );
+
+  if (erroConta) return <main className="conteudo"><Falha erro={erroConta} tentar={() => window.location.reload()} /></main>;
+  if (conta === undefined) return <main className="conteudo"><Carregando /></main>;
+  if (conta === null) return <Entrar entrou={entrou} botaoTema={botaoTema} />;
 
   // Computador: menu lateral. Tablet: trilho. Celular: barra de cima e abas embaixo.
   return (
@@ -63,10 +109,13 @@ export default function App() {
           ))}
         </nav>
         <p className="dica-lateral"><b>Dica</b>Abra uma fórmula, mude um limite e calcule de novo para comparar.</p>
-        <button className="btn sec tema" onClick={() => setTema(tema === 'claro' ? 'escuro' : 'claro')}>
-          <Icone nome={tema === 'claro' ? 'lua' : 'sol'} />
-          <span className="tema-rot">{tema === 'claro' ? 'Tema escuro' : 'Tema claro'}</span>
-        </button>
+        <div className="conta">
+          <span className="conta-email" title={conta.email}>{conta.email}</span>
+          <button className="btn sec sair" onClick={sair}>
+            <Icone nome="sair" tamanho={18} /><span className="sair-rot">Sair</span>
+          </button>
+        </div>
+        {botaoTema}
       </aside>
       <main className="conteudo">
         <Routes>

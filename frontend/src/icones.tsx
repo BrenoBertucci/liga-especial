@@ -16,6 +16,8 @@ const P = {
   lingote: <><path d="M2.5 19H16.5L14.5 13H4.5Z" /><path d="M4.5 13L7.5 9H17.5L14.5 13" /><path d="M16.5 19L21.5 15L17.5 9" /></>,
   sol: <><circle cx="12" cy="12" r="4" /><path d="M12 2V4M12 20V22M4.9 4.9L6.3 6.3M17.7 17.7L19.1 19.1M2 12H4M20 12H22M4.9 19.1L6.3 17.7M17.7 6.3L19.1 4.9" /></>,
   lua: <path d="M20 14.5A8 8 0 1 1 9.5 4A6.5 6.5 0 0 0 20 14.5Z" />,
+  sair: <><path d="M9 21H5A2 2 0 0 1 3 19V5A2 2 0 0 1 5 3H9" /><path d="M16 17L21 12L16 7" /><path d="M21 12H9" /></>,
+  cadeado: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7A4 4 0 0 1 16 7V11" /></>,
 } satisfies Record<string, ReactNode>;
 
 export type NomeIcone = keyof typeof P;

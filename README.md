@@ -37,7 +37,9 @@ A API só responde quando é chamada por `localhost` ou `127.0.0.1`, o que barra
 set ALLOWED_HOSTS=localhost,127.0.0.1,liga.exemplo.com.br
 ```
 
-Na primeira execução, o backend cria as tabelas e cadastra os dados da planilha `Liga_Especial_Solver.xlsx`: 4 atributos, 6 materiais e a fórmula "Liga padrão".
+Na primeira execução, o backend cria as tabelas. Cada conta nova recebe a própria cópia dos dados da planilha `Liga_Especial_Solver.xlsx`: 4 atributos, 6 materiais e a fórmula "Liga padrão".
+
+Banco criado antes das contas de usuário: rode uma vez `migracoes/20261117_contas_por_usuario.sql` (o arquivo `_desfazer` volta atrás). Os cadastros que já existiam ficam guardados com um dono que não entra no sistema.
 
 - Documentação da API: http://localhost:8000/docs
 - Teste do cálculo, sem banco: `python test_solver.py`
@@ -57,12 +59,23 @@ Acesse http://localhost:5181. As chamadas para `/api` são repassadas ao backend
 
 | Método e caminho | O que faz |
 | --- | --- |
+| `POST /api/auth/register`, `POST /api/auth/login` | Cria a conta ou entra; a sessão vai num cookie HttpOnly que dura 7 dias |
+| `POST /api/auth/logout`, `GET /api/auth/me` | Sai da conta; diz quem está logado |
 | `GET/POST /api/attributes`, `PUT/DELETE /api/attributes/{id}` | Atributos técnicos (nome e unidade) |
 | `GET/POST /api/materials`, `GET/PUT/DELETE /api/materials/{id}` | Materiais, com preço por kg e valor de cada atributo |
 | `GET/POST /api/formulas`, `GET/PUT/DELETE /api/formulas/{id}` | Fórmulas salvas: materiais, inclusões, limites e lote |
 | `POST /api/calculations` | Calcula a composição de menor custo |
 
-Os erros seguem o formato `{"error": {"code", "message", "details"}}`: 404 (não encontrado), 409 (nome repetido ou material em uso) e 422 (dados inválidos).
+Fora de `/api/auth`, toda rota pede conta (401 sem ela), e cada conta só vê e altera os próprios atributos, materiais e fórmulas: o id de outra conta responde 404, como se não existisse.
+
+Os erros seguem o formato `{"error": {"code", "message", "details"}}`: 401 (sem conta), 404 (não encontrado), 409 (nome ou e-mail repetido, material em uso), 422 (dados inválidos) e 429 (tentativas demais).
+
+## Segurança
+
+- Senha guardada com argon2id; o banco tem só o SHA-256 do token de sessão.
+- Cookie de sessão HttpOnly, Secure, SameSite=Strict e só no caminho `/api`; token novo a cada entrada.
+- Mesma resposta para e-mail sem conta e senha errada; 5 erros seguidos travam aquela conta por 15 minutos.
+- Teste completo de segurança (sem login, isolamento entre contas, força bruta, sessão, CSRF, XSS, cabeçalhos) feito em 17/11/2026: 105 de 105 aprovados.
 Quando não existe mistura possível, a resposta é 200 com `status: "no_solution"`, uma mensagem e sugestões de quais limites rever.
 
 ## Regras do cálculo
@@ -76,4 +89,4 @@ Quando não existe mistura possível, a resposta é 200 com `status: "no_solutio
 
 ## Próximas etapas
 
-Login, migrações de banco com Alembic, mais testes, histórico de preços e outras unidades além de kg e t.
+Recuperar senha por e-mail, migrações de banco com Alembic, mais testes, histórico de preços e outras unidades além de kg e t.
