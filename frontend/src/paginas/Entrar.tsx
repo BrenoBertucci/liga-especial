@@ -1,5 +1,6 @@
 // Entrar ou criar conta. Cada conta tem os próprios materiais, atributos e fórmulas.
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 
 import { api, ErroApi, type Conta } from '../api';
 import { Falha, Logo } from '../componentes';
@@ -13,30 +14,45 @@ export default function Entrar({ entrou, botaoTema }: { entrou: (c: Conta) => vo
   const [modo, setModo] = useState<Modo>('entrar');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [repetida, setRepetida] = useState('');
+  const [mostrar, setMostrar] = useState(false);
+  // Só muda quando a pessoa aperta o botão: nada é anunciado ao abrir a tela
+  const [anuncio, setAnuncio] = useState('');
   const [erro, setErro] = useState<ErroApi | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const criando = modo === 'criar';
-  const diferentes = criando && repetida !== '' && repetida !== senha;
+
+  // Voltar para a página pelo botão Voltar do navegador (cache de página) traz a senha escondida de novo
+  useEffect(() => {
+    const voltou = (e: PageTransitionEvent) => { if (e.persisted) setMostrar(false); };
+    window.addEventListener('pageshow', voltou);
+    return () => window.removeEventListener('pageshow', voltou);
+  }, []);
 
   function trocar(m: Modo) {
     setModo(m);
     setErro(null);
-    setRepetida('');
+    setMostrar(false);
+    setAnuncio('');
+  }
+
+  function alternar() {
+    setMostrar(!mostrar);
+    setAnuncio(mostrar ? 'Sua senha está oculta.' : 'Sua senha está visível.');
   }
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
-    if (criando && senha !== repetida) {
-      setErro(new ErroApi('As duas senhas não são iguais.'));
-      return;
-    }
+    // A senha vai escondida: campo de texto enviado o navegador pode guardar e sugerir em outros formulários
+    flushSync(() => setMostrar(false));
     setOcupado(true);
     setErro(null);
     try {
       entrou(await (criando ? api.criarConta(email, senha) : api.entrar(email, senha)));
     } catch (falha) {
-      setErro(falha as ErroApi);
+      const problema = falha as ErroApi;
+      // Login recusado: o campo da senha volta vazio para a próxima tentativa
+      if (!criando && problema.status === 401) setSenha('');
+      setErro(problema);
       setOcupado(false);
     }
   }
@@ -66,18 +82,21 @@ export default function Entrar({ entrou, botaoTema }: { entrou: (c: Conta) => vo
           <input type="email" required maxLength={254} autoComplete={criando ? 'email' : 'username'} value={email}
             onChange={(e) => setEmail(e.target.value)} placeholder="nome@exemplo.com" />
         </label>
-        <label className="campo">Senha
-          <input type="password" required maxLength={128} minLength={criando ? SENHA_MINIMA : undefined}
-            autoComplete={criando ? 'new-password' : 'current-password'} value={senha} onChange={(e) => setSenha(e.target.value)} />
-          {criando ? <small>Pelo menos {SENHA_MINIMA} caracteres.</small> : null}
-        </label>
-        {criando ? (
-          <label className="campo">Repita a senha
-            <input type="password" required maxLength={128} autoComplete="new-password" value={repetida} aria-invalid={diferentes}
-              onChange={(e) => setRepetida(e.target.value)} />
-            {diferentes ? <small className="texto-ruim">As senhas não são iguais.</small> : null}
-          </label>
-        ) : null}
+        <div className="campo">
+          <label htmlFor="campo-senha">Senha</label>
+          {/* Sem maxLength: o navegador cortaria a senha calado; o limite de 128 vem do servidor com mensagem */}
+          <div className="senha">
+            <input id="campo-senha" type={mostrar ? 'text' : 'password'} required minLength={criando ? SENHA_MINIMA : undefined}
+              autoComplete={criando ? 'new-password' : 'current-password'} spellCheck={false} autoCapitalize="none" autoCorrect="off"
+              aria-describedby={criando ? 'dica-senha' : undefined} value={senha} onChange={(e) => setSenha(e.target.value)} />
+            <button type="button" className="btn-ver" aria-controls="campo-senha" aria-label={mostrar ? 'Ocultar senha' : 'Mostrar senha'}
+              onClick={alternar}>
+              <Icone nome={mostrar ? 'olhoFechado' : 'olho'} tamanho={18} />{mostrar ? 'Ocultar' : 'Mostrar'}
+            </button>
+          </div>
+          {criando ? <small id="dica-senha">Pelo menos {SENHA_MINIMA} caracteres. Use Mostrar para conferir o que digitou.</small> : null}
+          <span className="oculto" role="status" aria-live="polite">{anuncio}</span>
+        </div>
         {erro ? <Falha erro={erro} /> : null}
         <button className="btn prim bloco" disabled={ocupado}>{ocupado ? 'Aguarde…' : criando ? 'Criar conta' : 'Entrar'}</button>
         <p className="dica com-icone"><Icone nome="cadeado" tamanho={16} />Ninguém vê as fórmulas da sua conta, e a senha nunca é guardada em texto.</p>
