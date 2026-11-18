@@ -4,7 +4,7 @@ Os dados do seed são os da planilha Liga_Especial_Solver.xlsx: o ótimo do Solv
 ferro, 5% de níquel e 87,5% da sucata A (Recuperado 1), a 0,2225 por kg.
 """
 from seed import ATRIBUTOS, MATERIAIS, LIMITES
-from solver import compor
+from solver import compor, compor_cacheado
 
 ATR = {i: {"name": n, "unit": u} for i, (n, u) in enumerate(ATRIBUTOS)}
 
@@ -48,5 +48,11 @@ assert r["status"] == "no_solution" and any("Sem o limite" in d for d in r["hint
 # Inclusão mínima obriga a usar sucata B
 r = compor(materiais(**{"Sucata reciclada B": (20, 100)}), limites(), ATR, 1000, "kg")
 assert r["status"] == "optimal" and r["items"][5]["binding"] == "min", r["items"][5]
+
+# Cache: mesmo resultado do cálculo direto; a segunda chamada igual vem da memória; mudar um limite recalcula
+primeira = compor_cacheado(materiais(), limites(), ATR, 1000, "kg")
+assert primeira == compor(materiais(), limites(), ATR, 1000, "kg")
+assert compor_cacheado(materiais(), limites(), ATR, 1000, "kg") is primeira
+perto(compor_cacheado(materiais(), limites(Níquel=(6, 8)), ATR, 1000, "kg")["cost_per_kg"], 0.227)
 
 print("solver ok")

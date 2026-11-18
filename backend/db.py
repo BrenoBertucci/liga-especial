@@ -3,15 +3,25 @@ import os
 import re
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, UniqueConstraint, create_engine, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, String, Text, UniqueConstraint, create_engine, func, make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from sqlalchemy.pool import NullPool
 
 # Sem senha no código: passe DATABASE_URL completa, ou deixe o libpq ler do pgpass.conf / PGPASSWORD
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+psycopg://postgres@localhost:5432/liga_especial")
 # Supabase e outros provedores entregam postgresql://; o driver instalado é o psycopg 3
-DATABASE_URL = re.sub(r"^postgres(ql)?://", "postgresql+psycopg://", DATABASE_URL)
-# pre_ping descarta a conexão que o servidor fechou enquanto a API estava parada
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+URL = make_url(re.sub(r"^postgres(ql)?://", "postgresql+psycopg://", DATABASE_URL))
+
+if (URL.host or "").endswith(".pooler.supabase.com"):
+    # Hospedagem sem servidor: cada instância abre conexões curtas. O pooler de transação do Supabase (6543) divide
+    # poucas conexões reais entre centenas de clientes; o de sessão (5432) para no tamanho do pool.
+    # Sem pool no Python (o pooler já é o pool) e sem prepared statements, que o modo transação não guarda.
+    engine = create_engine(URL.set(port=6543), poolclass=NullPool, connect_args={"prepare_threshold": None})
+else:
+    # Uma conexão para cada uma das 40 threads que atendem pedidos: nenhuma fica esperando o pool enquanto segura
+    # a vez de quem devolveria a conexão (com 5 + 10 a API travava com 100 pessoas ao mesmo tempo).
+    # pre_ping descarta a conexão que o servidor fechou enquanto a API estava parada.
+    engine = create_engine(URL, pool_size=10, max_overflow=30, pool_timeout=10, pool_pre_ping=True)
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 

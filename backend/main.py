@@ -3,11 +3,12 @@ Toda rota fora de /api/auth pede conta, e cada consulta só enxerga os dados de 
 import os
 from contextlib import asynccontextmanager
 
+import anyio
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, text
-from sqlalchemy.exc import DataError, IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError, TimeoutError as PoolTimeout
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -22,6 +23,9 @@ from schemas import (MAX_ID, AttributeIn, AttributeOut, CalculationIn, FormulaIn
 
 @asynccontextmanager
 async def lifespan(_):
+    # Até 100 pedidos rodando juntos (o padrão é 40). Com menos threads que pedidos, um pedido esperava a vez de
+    # rodar a rota segurando a conexão que pegou na checagem do login, e os outros travavam até o tempo limite.
+    anyio.to_thread.current_default_thread_limiter().total_tokens = 100
     # create_all só cria as tabelas que faltam; mudar tabela que já existe vai por migracoes/
     Base.metadata.create_all(engine)
     yield
@@ -114,6 +118,13 @@ async def erro_validacao(_, exc):
         return JSONResponse({"error": {"code": "NOT_FOUND", "message": MENSAGEM_HTTP[404], "details": []}}, status_code=404)
     details = [{"field": campo(e), "issue": motivo(e)} for e in exc.errors()]
     return JSONResponse({"error": {"code": "VALIDATION_ERROR", "message": "Confira os campos.", "details": details}}, status_code=422)
+
+
+@app.exception_handler(PoolTimeout)
+async def banco_ocupado(_, exc):
+    # Banco no limite: 503 com "tente de novo" em vez de um 500 que parece defeito
+    return JSONResponse({"error": {"code": "BUSY", "message": "O servidor está ocupado. Tente de novo em instantes.", "details": []}},
+                        status_code=503, headers={"Retry-After": "2"})
 
 
 @app.exception_handler(DataError)
@@ -354,7 +365,7 @@ def calcular(body: CalculationIn, u: User = Depends(usuario_atual), db: Session 
         "values": {v.attribute_id: v.value for v in m.values},
     } for i in body.items for m in [materiais[i.material_id]]]
     limites = [{"attribute_id": l.attribute_id, "min": l.min_value, "max": l.max_value} for l in body.limits]
-    return solver.compor(itens, limites, todos, body.batch_size, body.batch_unit)
+    return solver.compor_cacheado(itens, limites, todos, body.batch_size, body.batch_unit)
 
 
 @app.get("/api/health")

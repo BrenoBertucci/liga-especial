@@ -4,6 +4,8 @@ Variáveis: x_i = fração de cada material na mistura (0 a 1).
 Minimiza Σ preço_i · x_i, com Σ x_i = 1, inclusão mín ≤ x_i ≤ máx e, para cada atributo
 limitado, mín ≤ Σ valor_i · x_i ≤ máx (média ponderada pela massa).
 """
+from functools import lru_cache
+
 from scipy.optimize import linprog
 
 KG_POR_UNIDADE = {"kg": 1.0, "t": 1000.0}
@@ -94,6 +96,22 @@ def compor(materiais, limites, atributos, lote, unidade):
         "cost_per_kg": custo_kg, "cost_per_unit": custo_kg * KG_POR_UNIDADE[unidade], "total_cost": custo_kg * lote_kg,
         "items": itens, "attributes": valores, "limits": conferencia, "model": modelo,
     }
+
+
+@lru_cache(maxsize=512)
+def _compor_congelado(itens, limites, atributos, lote, unidade):
+    return compor([{"id": i, "name": n, "price": p, "min_pct": a, "max_pct": b, "values": dict(v)} for i, n, p, a, b, v in itens],
+                  [{"attribute_id": a, "min": lo, "max": hi} for a, lo, hi in limites],
+                  {a: {"name": n, "unit": u} for a, n, u in atributos}, lote, unidade)
+
+
+def compor_cacheado(materiais, limites, atributos, lote, unidade):
+    """Mesmo resultado de compor(). Entrada repetida (a fórmula aberta de novo, o mesmo limite testado outra vez)
+    sai da memória sem rodar o otimizador. A chave tem os ids dos materiais, que são de uma conta só."""
+    return _compor_congelado(
+        tuple((m["id"], m["name"], m["price"], m["min_pct"], m["max_pct"], tuple(sorted(m["values"].items()))) for m in materiais),
+        tuple((l["attribute_id"], l["min"], l["max"]) for l in limites),
+        tuple(sorted((a, d["name"], d["unit"]) for a, d in atributos.items())), lote, unidade)
 
 
 def _dicas(materiais, limites, atributos, precos, faixas, linhas):

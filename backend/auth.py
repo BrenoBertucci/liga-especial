@@ -3,6 +3,7 @@ A sessão é um token aleatório num cookie HttpOnly, Secure e SameSite=Strict; 
 import hashlib
 import re
 import secrets
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -25,7 +26,12 @@ CADASTROS_POR_HORA = 50
 SENHA_MINIMA = 8
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-senhas = PasswordHasher()  # argon2id com os parâmetros da RFC 9106 (64 MiB, 3 passadas)
+# argon2id no mínimo da OWASP (19 MiB, 2 passadas, 1 linha): ~35 ms por senha. Hash antigo (64 MiB) ainda confere
+# e é refeito com estes parâmetros no próximo login (check_needs_rehash).
+senhas = PasswordHasher(memory_cost=19456, time_cost=2, parallelism=1)
+# Hash é a parte mais pesada de memória e CPU: no máximo 4 ao mesmo tempo por processo; 100 logins juntos esperam
+# a vez em vez de pedir 100 × 19 MiB de uma vez
+VEZ_DO_HASH = threading.BoundedSemaphore(4)
 # E-mail sem conta também passa por uma verificação: o tempo de resposta não entrega quem tem conta
 HASH_FALSO = senhas.hash(secrets.token_hex(16))
 
@@ -60,9 +66,15 @@ def normalizar(email: str) -> str:
 
 def confere(hash_: str, senha: str) -> bool:
     try:
-        return senhas.verify(hash_, senha)
+        with VEZ_DO_HASH:
+            return senhas.verify(hash_, senha)
     except (VerificationError, InvalidHashError):
         return False
+
+
+def gerar_hash(senha: str) -> str:
+    with VEZ_DO_HASH:
+        return senhas.hash(senha)
 
 
 def resumo(token: str) -> str:
@@ -89,12 +101,14 @@ def anotar(db: Session, kind: str, key: str):
 
 
 def usuario_atual(liga_sessao: Annotated[str | None, Cookie()] = None, db: Session = Depends(get_db)) -> User:
-    sessao = None
+    u = None
     if liga_sessao and len(liga_sessao) <= 100:
-        sessao = db.scalar(select(UserSession).where(UserSession.token_hash == resumo(liga_sessao)))
-    if sessao is None or sessao.expires_at <= agora():
+        # Sessão válida e dono numa consulta só: roda em todo pedido, então cada ida ao banco conta
+        u = db.scalar(select(User).join(UserSession, UserSession.user_id == User.id)
+                      .where(UserSession.token_hash == resumo(liga_sessao), UserSession.expires_at > agora()))
+    if u is None:
         negar(401, "UNAUTHENTICATED", "Entre na sua conta para continuar.")
-    return db.get(User, sessao.user_id)
+    return u
 
 
 @router.post("/register", response_model=ContaOut, status_code=201)
@@ -106,7 +120,7 @@ def cadastrar(body: ContaIn, resposta: Response, db: Session = Depends(get_db)):
         negar(429, "TOO_MANY_REQUESTS", "Muitas contas criadas agora há pouco. Tente de novo mais tarde.", {"Retry-After": "3600"})
     if db.scalar(select(User.id).where(User.email == email)) is not None:
         negar(409, "EMAIL_TAKEN", "Já existe uma conta com esse e-mail. Entre com ela.")
-    u = User(email=email, password_hash=senhas.hash(body.password))
+    u = User(email=email, password_hash=gerar_hash(body.password))
     db.add(u)
     db.flush()
     semear_conta(db, u.id)
@@ -130,7 +144,7 @@ def entrar(body: ContaIn, resposta: Response, db: Session = Depends(get_db)):
         negar(401, "INVALID_CREDENTIALS", "E-mail ou senha incorretos.")
     db.execute(delete(AuthAttempt).where(AuthAttempt.kind == "login", AuthAttempt.key == email))
     if senhas.check_needs_rehash(u.password_hash):
-        u.password_hash = senhas.hash(body.password)
+        u.password_hash = gerar_hash(body.password)
     abrir_sessao(db, u, resposta)
     db.commit()
     return ContaOut(email=u.email)
