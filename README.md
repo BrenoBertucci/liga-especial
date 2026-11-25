@@ -441,7 +441,3 @@ A API aguenta essa carga por causa destes ajustes:
 - Se a fórmula limita um atributo, todos os materiais escolhidos precisam ter valor para ele.
 - A fórmula salva guarda materiais, limites e lote. Ao abrir, o sistema recalcula o resultado com os preços atuais.
 - O sistema não deixa excluir um material usado em alguma fórmula.
-
-## Próximas etapas
-
-Recuperar senha por e-mail, migrações de banco com Alembic, mais testes, histórico de preços e outras unidades além de kg e t.
